@@ -6,3 +6,7 @@ docs-check
 docs-immutability
 gate
 require-linked-issue
+test-matrix (3.11)
+test-matrix (3.12)
+test-matrix (3.13)
+test-matrix (3.14)

@@ -45,9 +45,26 @@ milestone. Report security problems privately (see [SECURITY.md](SECURITY.md)).
 
 ## Running checks
 
-_TODO: name the single command that runs every check._ The required `gate` job in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the same command; until it is
-set up, `gate` fails every pull request.
+One command runs every check:
+
+```bash
+nox -s gate          # or just `nox`
+```
+
+It checks formatting and lint (ruff), types (`mypy --strict` with django-stubs), runs
+Django's system checks, the migrations check and the tests (pytest, Hypothesis) on the
+interpreter running nox, and then typos and the docs checks. `nox -s fmt -- --fix` rewrites
+formatting. Install nox with `python3 -m pip install --user nox`, and
+[typos](https://github.com/crate-ci/typos) for the spell check (the session warns and skips
+without it; CI always runs it).
+
+The required `gate` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the
+same command. The `test-matrix` jobs run the tests on every supported Python
+(`nox -s test-3.11` and so on).
+
+The engine (`src/depotbuch/engine/`) and the adapters (`src/depotbuch/adapters/`) never
+import Django or Django Ninja: ruff's banned-api rule and `tests/test_boundaries.py` fail
+the gate if they do.
 
 The status checks `main` requires are listed in
 [`.github/required-checks.txt`](.github/required-checks.txt). A maintainer can see whether

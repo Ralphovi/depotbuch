@@ -7,22 +7,34 @@ differ about what exists in code today, this file describes the code and §14 de
 design it is growing into. A change that adds an untrusted input or moves a trust boundary
 updates both in the same PR.
 
-_Fill in each section; delete the italic prompts. Models:
-[wyrd](https://github.com/getwyrd/wyrd/blob/main/.oss-scanner/threat_model.md),
-[nl-shell](https://github.com/getwyrd/nl-shell/blob/main/.oss-scanner/threat_model.md)._
-
 ## What this project does
 
-_The components and how data flows between them, in a few paragraphs or a small diagram._
+depotbuch is a single-user, self-hosted portfolio tracker. The owner imports bank and broker
+statements (PDF, CSV, OFX) through ofxstatement plugins, OFX files or a Parqet CSV export.
+Adapters turn them into activities; a pure-Python engine computes holdings, lots, values,
+taxes and returns from those activities plus prices (yfinance) and FX rates (ECB). A Django
+backend stores the data and serves a JSON API (Django Ninja) to a TypeScript front end; a
+`depot` CLI runs the same engine as Django management commands. It runs as one container on
+the owner's homelab, behind TLS and a login.
+
+Today the repository holds the project scaffold only; the components above are being built
+(architecture §9).
 
 ## Where untrusted input enters
 
 Treat all of the following as attacker-controlled:
 
-1. _Each input an attacker can control: where it enters, who controls it, which component
-   parses it._
+1. **Statement files** given to `depot import`: content parsed by ofxstatement plugins and by
+   depotbuch's OFX and Parqet CSV parsers (`src/depotbuch/adapters/`).
+2. **Price and FX responses** from Yahoo Finance (via yfinance) and the ECB, fetched by
+   `depot update` (`src/depotbuch/adapters/`).
+3. **HTTP requests** to the web front end and the API under `/api/` (`src/depotbuch/web/`),
+   from anyone who can reach the server.
+   Today only `/api/health` answers without a login (status and version). The API schema
+   and Swagger UI (`/api/openapi.json`, `/api/docs`) and `/admin/` need a staff login.
 
-Trusted: _what is not attacker-controlled, and why._
+Trusted: the owner (the only user), the ofxstatement plugins the owner installs, the server's
+configuration, and the database.
 
 Already in place from the template: `.github/workflows/welcome-first-time-contributor.yml`
 runs on `pull_request_target`, so it holds a token with `pull-requests: write` (its only
@@ -34,31 +46,49 @@ PR number from the payload and posts a fixed comment. A change that adds an
 
 ## What must hold
 
-- _The properties a finding breaks. These are what the security review checks._
+- No figure is silently wrong: an import never drops a row without reporting it, never counts
+  a cash movement twice, and never stores a sale larger than the holding.
+- No data is readable or changeable without an authenticated session; nothing is served over
+  plain HTTP.
+- No input file or provider response can execute code, read files or exhaust the server
+  (for example through XML entity expansion in OFX).
+- The engine and adapters never import Django.
 
 ## Components that matter most
 
-In order: _the components, most exposed first._
+In order: the web project and API (`src/depotbuch/web/`), the import adapters
+(`src/depotbuch/adapters/`), the portfolio app's import and identity logic
+(`src/depotbuch/web/portfolio/`), the engine (`src/depotbuch/engine/`).
 
-Lower priority: _test tools, build automation._
+Lower priority: the CLI, the HTML report, test tools, build automation.
 
-Out of scope: _generated code; third-party code (report a dependency bug only if this
-project's use of it is what makes it exploitable)._
+Out of scope: generated code (the front end's API client); third-party code (report a
+dependency bug only if this project's use of it is what makes it exploitable).
 
 ## Known gaps: do not report these on their own
 
-- _Each known, accepted gap, and what about it is still in scope._
+- ofxstatement plugins run in-process with full rights, by design. A way for a *statement
+  file* to make a plugin run code is still in scope.
+- yfinance data has no integrity guarantee. Missing plausibility checks on prices are known;
+  a way for a response to corrupt unrelated data is in scope.
+- Rate limiting on login is not decided yet (§14.5).
+- Production settings (HTTPS redirect, secure cookies, HSTS) arrive with the deployment
+  milestone; the scaffold runs with Django's defaults behind `DEPOTBUCH_*` variables.
 
 ## How to exercise it
 
-_The test command, how to run the system locally, and how to drive the exposed inputs._
+`nox -s gate` runs every check (lint, types, tests, docs). Run the server locally with the
+Django development server against a SQLite database and drive the inputs with
+`depot import FILE` and requests to `/api/`. Use synthetic data only.
 
 ## How we rate severity
 
-- **Critical:** _…_
-- **High:** _…_
-- **Medium:** _…_
-- **Low:** _…_
+- **Critical:** silently wrong figures that look right, or remote access to portfolio data
+  or code execution without authentication.
+- **High:** code execution or file access through a statement file or provider response;
+  reading the portfolio with a stolen or forged session.
+- **Medium:** denial of service through a crafted input; CSV injection in an export.
+- **Low:** issues needing the owner's own credentials or a deliberate misconfiguration.
 
 A clean reproducer matters more than a severity label. The best form is a failing test in
 the style of the existing ones.

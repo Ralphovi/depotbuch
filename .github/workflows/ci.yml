@@ -1,13 +1,12 @@
 name: ci
 
-# The project's own checks: tests, lints, build. Its `gate` job is a required status
-# check on `main` (init-repo.sh sets it), so nothing merges without passing it.
+# The project's own checks. `nox -s gate` is single-sourced in noxfile.py; this workflow
+# runs it and re-declares nothing. Its `gate` job is a required status check on `main`,
+# so nothing merges without passing it.
 #
-# How to fill this in: replace the "Checks not set up yet" step with the toolchain setup
-# and the ONE command that runs every check, the same command CONTRIBUTING.md names
-# (wyrd runs `cargo xtask ci`, autobook `nox -s gate`). Keep the job id `gate`: branch
-# protection requires it by that name. More jobs (a test matrix, nightly runs) can be
-# added beside it; make them required too if they should block a merge.
+# No path filter: both jobs always run and always report, so they can be required checks.
+# A path-filtered workflow never reports on PRs that miss the filter and leaves them
+# pending forever.
 on:
   pull_request:
   push:
@@ -16,27 +15,73 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
+
 jobs:
+  # The whole gate on one interpreter: format, lint, mypy --strict, tests, typos, docs.
   gate:
-    # The template repository has no project code to check. Repos created from it run
-    # the job, and fail it until the step below is replaced.
+    # The template repository has no project code to check.
     if: ${{ !github.event.repository.is_template }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # For example, for a Python project:
-      #   - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-      #     with:
-      #       python-version: "3.14"
-      #   - run: python -m pip install -e '.[dev]'
-      #   - run: python -m pytest
-      # For a Rust project (init-repo.sh with cargo set up the pinned advisory database):
-      #   - run: cargo install --locked cargo-deny@0.20.2
-      #   - run: scripts/advisory-db.sh && cargo deny --offline check advisories
-      #   - run: cargo test --locked
-      - name: Checks not set up yet
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install typos
+        # The spell check always runs in CI rather than letting the nox session skip it.
+        # Pinned and checksummed: an unpinned linter turns an unrelated PR red on someone
+        # else's dictionary change.
+        env:
+          VERSION: v1.52.0
+          SHA256: 6155d4114f9a0f5b8f6d4fda96266c9d5f6add71df80da7f684ee5e72eb14588
         run: |
-          echo "::error::No checks are set up yet. Replace the 'Checks not set up yet' step in .github/workflows/ci.yml with the project's check command, and name the same command in CONTRIBUTING.md."
-          exit 1
+          set -euo pipefail
+          curl -fsSL -o typos.tar.gz \
+            "https://github.com/crate-ci/typos/releases/download/$VERSION/typos-$VERSION-x86_64-unknown-linux-musl.tar.gz"
+          echo "$SHA256  typos.tar.gz" | sha256sum -c -
+          sudo tar -xzf typos.tar.gz -C /usr/local/bin ./typos
+          rm typos.tar.gz
+          typos --version
+
+      - name: Install nox
+        # `python -m pip`, not pipx: pipx would install nox under the runner's default
+        # interpreter, and the gate would test on a Python nobody chose.
+        run: python -m pip install nox==2026.10.20
+
+      - name: Run the gate
+        run: nox -s gate
+
+  # The test suite across the supported range (PYTHONS in noxfile.py, requires-python in
+  # pyproject.toml). Required alongside `gate`.
+  test-matrix:
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install nox
+        run: python -m pip install nox==2026.10.20
+
+      - name: Run the test suite
+        # A missing interpreter fails loudly instead of skipping to a green run.
+        run: nox --error-on-missing-interpreters -s "test-${{ matrix.python-version }}"
