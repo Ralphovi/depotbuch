@@ -11,8 +11,10 @@ tags:
 # Proposal: depotbuch product spec (Parqet replacement)
 
 Taken from the product spec of 9 November 2026, reordered to follow the proposal template.
-One correction since: under *Calculations*, income that stays inside the selected slice and
-taxes on sales are each counted once (the spec counted both twice).
+Corrections since, all under *Calculations* and from review: income that stays inside the
+selected slice and taxes on sales are each counted once (the spec counted both twice);
+deliveries enter performance at market value, not cost basis; dividends go to the lots
+held before the ex-date, not on the payment date.
 
 ## Motivation
 
@@ -96,7 +98,7 @@ All broker data enters through ofxstatement, so a statement is parsed one way fo
 | Sell | `SELLSTOCK`, `SELLMF`, `SELLDEBT` | − | positive: price × units − fees − taxes |
 | Dividend, distribution, coupon | `INCOME` | 0 | net amount credited; `WITHHOLDING` kept as withheld tax |
 | Reinvested dividend | `REINVEST` | + | split into a dividend and a buy |
-| Delivery in or out | `TRANSFER` | ± | none; valued at the stated cost basis |
+| Delivery in or out | `TRANSFER` | ± | none; the lot keeps the stated cost basis, the performance flow uses the market value on the transfer date |
 | Security expense | `INVEXPENSE` | 0 | negative |
 | Split | `SPLIT` | ratio | none |
 
@@ -193,7 +195,7 @@ Every figure is computed in EUR, after taxes, for a time range (YTD, 1 year, sin
 1 + \mathrm{TTWROR} = \prod_{d} \frac{V_d + S_d + D_d - T_d}{V_{d-1} + B_d}
 ```
 
-V is the slice's value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals, after the fees and taxes on them. D is income paid out of the slice that day, before tax, and T the tax withheld on it, so D − T is the net income that left the slice. Income credited to an account inside the slice (interest staying on Tagesgeld, a dividend landing on a Verrechnungskonto that the slice includes) is already in V and is not added as D. Taxes on sales are deducted once, in S, and are not part of T. Fees are included in B and S, so they also reduce the return.
+V is the slice's value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals, after the fees and taxes on them. D is income paid out of the slice that day, before tax, and T the tax withheld on it, so D − T is the net income that left the slice. Income credited to an account inside the slice (interest staying on Tagesgeld, a dividend landing on a Verrechnungskonto that the slice includes) is already in V and is not added as D. Taxes on sales are deducted once, in S, and are not part of T. Fees are included in B and S, so they also reduce the return. A delivery in or out enters B or S at its market value on the transfer date (units × close × FX), not at its cost basis, so a gain earned before the transfer is not counted as return of the slice; the cost basis stays with the lot for invested capital and realized gains. A transfer between two accounts inside the slice is not a flow.
 
 **Parqet-compatible mode** (`--parqet`). Follows Parqet's FAQ for a portfolio with a cash account: taxes and fees on buys, sales and dividends are not counted as a loss of return, while costs booked directly to the cash account (custody or account fees) still reduce it. Used only for the parallel run.
 
@@ -205,7 +207,7 @@ V is the slice's value at end of day. B is inflows: buys, deliveries in, deposit
 
 CF is −inflows + outflows + net income paid out of the slice, all after fees and taxes. As for TTWROR, income that stays inside the slice is already in the end value and is not a flow.
 
-**Lots.** Each buy or delivery in opens a lot. Sales close lots first-in first-out within the same account, as German tax law does. Dividends are split across the lots held on the payment date, in proportion to units. A lot reports cost, value, dividends, gain after tax, return since purchase, and the annualized return once it is at least 365 days old. Deposits and contracts have no lots; their since-purchase figure is the IZF from the first inflow.
+**Lots.** Each buy or delivery in opens a lot. Sales close lots first-in first-out within the same account, as German tax law does. Dividends are split across the lots entitled to them, the lots held at the end of the day before the ex-date, in proportion to units; the payment date stays the date of the income flow. When the source gives no ex-date, the lots held on the payment date are used and the split is marked as approximate. A lot reports cost, value, dividends, gain after tax, return since purchase, and the annualized return once it is at least 365 days old. Deposits and contracts have no lots; their since-purchase figure is the IZF from the first inflow.
 
 **Taxes are attributed where they arise.** A tax on a sale or dividend belongs to that asset. Tax reported only as a yearly total (for example the Verlustverrechnung settlement at year end) belongs to the provider, so the provider and portfolio figures are correct even when no single asset can carry it.
 
@@ -213,7 +215,7 @@ CF is −inflows + outflows + net income paid out of the slice, all after fees a
 
 **No double counting.** A trade appears twice: as an investment activity and as its cash line on the Verrechnungskonto (for example `EFFEKTEN` at Consorsbank). Each investment activity is matched to its cash line by provider, amount and a booking date up to 3 business days later; the matched cash line is not counted again. Unmatched lines on either side are listed in the import report.
 
-**Edge cases.** Splits restate history onto the current basis. A dividend paid after a full sale is added to the position's last held day. A range with no value at the start and no inflows yields no TTWROR (shown as —). Foreign-currency assets include the FX effect, as Parqet does.
+**Edge cases.** Splits restate history onto the current basis. A dividend paid after a full sale belongs to the lots held before the ex-date; without an ex-date it is added to the position's last held day. A range with no value at the start and no inflows yields no TTWROR (shown as —). Foreign-currency assets include the FX effect, as Parqet does.
 
 ### Views
 
@@ -329,6 +331,8 @@ engine over later without changing its inputs.
 - [ ] Step 2: which pension contracts report fund units and which only a contract value? That decides how often they can be valued.
 - [ ] Parallel run: does the Parqet portfolio hold every Verrechnungskonto that depotbuch tracks? Both tools must include the same cash, since idle cash dilutes TTWROR.
 - [ ] Does Parqet apply FIFO per sub-depot or per portfolio? This changes realized gains when the same ISIN sits in two depots.
+- [ ] Does Parqet value a TransferIn at the price given in the row (usually the cost basis) or at market value? If at the price given, `--parqet` must do the same for the parallel run.
+- [ ] Which sources give a dividend's ex-date? OFX `INCOME` has no field for it and the Parqet CSV has no column for it; whether the brokers' dividend notices print it is still to be checked.
 - [ ] IBKR (later): what does IBKR charge for German exchange Level 1 data, and how many years of daily history does one month of subscription return?
 
 ## Sources
