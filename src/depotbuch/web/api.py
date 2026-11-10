@@ -1,12 +1,18 @@
-"""The JSON API. The OpenAPI spec is served at /api/openapi.json; the front end's client is
-generated from it.
-"""
+"""The JSON API, with its OpenAPI schema at /api/openapi.json."""
 
+from django.contrib.admin.views.decorators import staff_member_required
 from ninja import NinjaAPI, Schema
 
 import depotbuch
 
-api = NinjaAPI(title="depotbuch", version=depotbuch.__version__)
+# The schema (/api/openapi.json) and the Swagger UI (/api/docs) describe every endpoint,
+# so they need the admin login like the data does. The front end's client is generated
+# from the schema at build time, not fetched from a running server.
+api = NinjaAPI(
+    title="depotbuch",
+    version=depotbuch.__version__,
+    docs_decorator=staff_member_required,
+)
 
 
 class Health(Schema):
