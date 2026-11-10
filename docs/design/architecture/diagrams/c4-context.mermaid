@@ -1,11 +1,24 @@
 %% C4 level 1: the system and who or what it talks to (architecture §3).
-%% Replace the placeholder people and systems with the real ones.
 C4Context
   title System context for depotbuch
 
-  Person(user, "User", "Who uses the system and why")
-  System(system, "depotbuch", "Self-hosted portfolio tracker across all brokers and deposits, net of taxes — a Parqet replacement")
-  System_Ext(external, "External system", "Something the system depends on or serves")
+  Person(owner, "Owner", "Private investor; imports statements, reads the views on desktop and phone")
+  System(depotbuch, "depotbuch", "Self-hosted portfolio tracker across all brokers and deposits, net of taxes")
 
-  Rel(user, system, "Uses")
-  Rel(system, external, "Calls / reads / writes")
+  System_Ext(statements, "Statement files", "PDF, CSV and OFX statements downloaded by hand from the brokers and deposit banks")
+  System_Ext(ofxplugins, "ofxstatement and plugins", "Installed Python packages, run in-process; parse statements")
+  System_Ext(parqet, "Parqet CSV export", "One-time migration of the existing history")
+  System_Ext(yahoo, "Yahoo Finance (yfinance)", "Daily closes and splits for securities")
+  System_Ext(ecb, "ECB reference rates", "Daily FX rates")
+  System_Ext(ibkr, "Interactive Brokers (later)", "Primary price source via TWS or IB Gateway")
+  System_Ext(autobook, "Autobook and GnuCash", "Read the same ofxstatement output; no runtime link")
+
+  Rel(owner, depotbuch, "Imports files, reads views", "CLI, HTTPS")
+  Rel(owner, statements, "Downloads")
+  Rel(depotbuch, statements, "Reads")
+  Rel(depotbuch, ofxplugins, "Loads and calls", "Python, in-process")
+  Rel(depotbuch, parqet, "Reads once")
+  Rel(depotbuch, yahoo, "Fetches closes and splits", "HTTPS")
+  Rel(depotbuch, ecb, "Fetches FX rates", "HTTPS")
+  Rel(depotbuch, ibkr, "Fetches history (later)", "TWS API")
+  Rel(autobook, ofxplugins, "Uses the same plugins")
