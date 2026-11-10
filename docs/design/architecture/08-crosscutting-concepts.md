@@ -119,7 +119,9 @@ when the same ISIN sits in two depots, and so the parallel run.
   already in the value. Taxes on a sale are deducted once, from its proceeds. Fees are part
   of inflows and outflows, so they reduce the return. A delivery in or out counts at market
   value on the transfer date, so a gain earned before the transfer is not return of the
-  slice; a transfer between two accounts inside the slice is no flow at all. Shown for the range, never annualized. A
+  slice; a transfer between two accounts inside the slice is no flow at all.
+  A day on which the slice holds nothing (between a full sale and a repurchase, or before
+  the first inflow) is a neutral factor of 1, so the product runs over invested days only. Shown for the range, never annualized. A
   range with no start value and no inflows has no TTWROR (shown as —).
 - **IZF** is the annualized internal rate of return, with the start value as an outflow on
   the first day and the end value as an inflow on the last. Income counts as a cash
