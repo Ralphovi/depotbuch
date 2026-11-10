@@ -1,0 +1,42 @@
+name: ci
+
+# The project's own checks: tests, lints, build. Its `gate` job is a required status
+# check on `main` (init-repo.sh sets it), so nothing merges without passing it.
+#
+# How to fill this in: replace the "Checks not set up yet" step with the toolchain setup
+# and the ONE command that runs every check, the same command CONTRIBUTING.md names
+# (wyrd runs `cargo xtask ci`, autobook `nox -s gate`). Keep the job id `gate`: branch
+# protection requires it by that name. More jobs (a test matrix, nightly runs) can be
+# added beside it; make them required too if they should block a merge.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    # The template repository has no project code to check. Repos created from it run
+    # the job, and fail it until the step below is replaced.
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # For example, for a Python project:
+      #   - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      #     with:
+      #       python-version: "3.14"
+      #   - run: python -m pip install -e '.[dev]'
+      #   - run: python -m pytest
+      # For a Rust project (init-repo.sh with cargo set up the pinned advisory database):
+      #   - run: cargo install --locked cargo-deny@0.20.2
+      #   - run: scripts/advisory-db.sh && cargo deny --offline check advisories
+      #   - run: cargo test --locked
+      - name: Checks not set up yet
+        run: |
+          echo "::error::No checks are set up yet. Replace the 'Checks not set up yet' step in .github/workflows/ci.yml with the project's check command, and name the same command in CONTRIBUTING.md."
+          exit 1

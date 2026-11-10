@@ -1,0 +1,17 @@
+# cargo-deny's configuration. The gate's advisory check is
+#
+#   scripts/advisory-db.sh && cargo deny --offline check advisories
+#
+# Add [licenses], [bans] and [sources] sections to check those as well (`cargo deny init`
+# prints a commented example of each) and drop `advisories` from the command.
+
+[advisories]
+version = 2
+# The database is pinned: scripts/advisory-db.sh moves the clone here to the commit the
+# .github/advisory-db submodule records, and the gate reads it --offline. Dependabot moves
+# the pin daily, so a new advisory arrives as one PR instead of breaking every open PR.
+# A directory of our own, so pinning never rewinds the shared $CARGO_HOME copy.
+db-path = "target/advisory-dbs"
+# cargo-deny's default scope for unsoundness advisories is the workspace's own crates
+# only; `all` covers the dependencies too, which is where they almost always are.
+unsound = "all"

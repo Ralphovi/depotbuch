@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""Stand-in for gh used by the template tests: a small fake GitHub.
+
+It answers init-repo.sh's questions about the user and repo, passes license lookups to
+the real gh ($REAL_GH), and keeps the repo's settings in a JSON file ($STUB_STATE: API
+path -> the answer GitHub would give). A read of a path not in the file fails like a 404;
+a write updates the file the way GitHub would, so repo-settings.py's `apply` and `check`
+can be tested end to end. Every call other than a read is logged to $STUB_LOG, followed
+by its stdin when the call reads `--input -`.
+
+With $STUB_LAG=N, the first N reads after a write still see the state from before it, as
+GitHub's reads lag its writes by a few seconds.
+
+Like GitHub, it leaves generic-secret scanning off for a repo on a personal account, and
+it adds a milestone created with `gh api repos/<repo>/milestones -f title=...` to the list.
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+cmd = " ".join(args)
+STATE = Path(os.environ.get("STUB_STATE", "/nonexistent"))
+
+
+def fail(message: str, code: int = 1) -> None:
+    print(f"gh: {message}", file=sys.stderr)
+    sys.exit(code)
+
+
+def option(name: str) -> str | None:
+    return args[args.index(name) + 1] if name in args else None
+
+
+def fields() -> dict:
+    """The -f (string) and -F (typed) fields of an api call."""
+    out = {}
+    for flag, value in zip(args, args[1:]):
+        if flag in ("-f", "-F"):
+            key, _, raw = value.partition("=")
+            out[key] = json.loads(raw) if flag == "-F" and raw in ("true", "false") else raw
+    return out
+
+
+def jq(data, expr: str) -> list:
+    """The simple paths init-repo.sh uses with --jq: `.a.b`, or `.[].a` over a list."""
+    if expr.startswith(".[]"):
+        return [v for item in data for v in jq(item, expr[3:] or ".")]
+    for key in filter(None, expr.split(".")):
+        data = data[key]
+    return [data]
+
+
+if cmd == "auth status":
+    sys.exit(0)
+if cmd.startswith("repo view --json nameWithOwner,isTemplate,defaultBranchRef"):
+    print("eduralph/demo\tfalse\tmain")
+    sys.exit(0)
+if cmd.startswith("repo view --json nameWithOwner"):
+    print("eduralph/demo")
+    sys.exit(0)
+if cmd.startswith("repo view --json description"):
+    print("A demo project.")
+    sys.exit(0)
+if cmd == "api user --jq .login":
+    print("demo-maintainer")
+    sys.exit(0)
+if cmd.startswith("api user --jq "):
+    print("Demo Maintainer")
+    sys.exit(0)
+if cmd.startswith("api licenses/"):
+    os.execv(os.environ["REAL_GH"], [os.environ["REAL_GH"], *args])
+
+method = option("-X") or ("POST" if "-f" in args or "-F" in args else "GET")
+path = next((a for a in args[1:] if a.startswith("repos/")), None) if args[:1] == ["api"] else None
+if path and "/milestones" in path:
+    path = path.split("?", 1)[0]
+
+if path and method == "GET":
+    if "/contents/" in path:
+        # The repo's files are the working tree the test runs in.
+        file = Path(path.split("/contents/", 1)[1].split("?", 1)[0])
+        if not file.is_file():
+            fail("Not Found (HTTP 404)")
+        print(file.read_text(encoding="utf-8"), end="")
+        sys.exit(0)
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    if state.get("_stale_reads", 0) > 0:
+        state["_stale_reads"] -= 1
+        STATE.write_text(json.dumps(state, indent=1), encoding="utf-8")
+        state = state["_stale"]
+    if path not in state:
+        fail("Not Found (HTTP 404)")
+    expr = option("--jq")
+    answer = state[path]
+    if expr:
+        for value in jq(answer, expr):
+            print(value)
+    elif answer != {} or not path.endswith("/vulnerability-alerts"):
+        print(json.dumps(answer))
+    sys.exit(0)
+
+log = Path(os.environ["STUB_LOG"])
+with log.open("a", encoding="utf-8") as fh:
+    fh.write(f"gh {cmd}\n")
+    body = sys.stdin.read() if option("--input") == "-" else None
+    if body is not None:
+        fh.write(body + "\n")
+
+if not path:
+    sys.exit(0)  # labels and anything else that only needs logging
+
+state = json.loads(STATE.read_text(encoding="utf-8"))
+if int(os.environ.get("STUB_LAG", "0")):
+    if state.get("_stale_reads", 0) <= 0:
+        state["_stale"] = json.loads(json.dumps(
+            {k: v for k, v in state.items() if not k.startswith("_")}))
+    state["_stale_reads"] = int(os.environ["STUB_LAG"])
+repo_path = "/".join(path.split("/")[:3])
+if path.endswith("/private-vulnerability-reporting"):
+    state[path] = {"enabled": True}
+elif path.endswith("/vulnerability-alerts"):
+    state[path] = {}
+elif path.endswith("/milestones"):
+    state.setdefault(path, []).append(fields())
+elif path.endswith("/automated-security-fixes"):
+    state[path] = {"enabled": True, "paused": False}
+elif path.endswith("/protection"):
+    want = json.loads(body)
+    checks = want["required_status_checks"]
+    state[path] = {
+        "required_status_checks": {"strict": checks["strict"], "contexts": checks["contexts"]},
+        "required_pull_request_reviews": want["required_pull_request_reviews"],
+        "enforce_admins": {"enabled": want["enforce_admins"]},
+        "required_conversation_resolution": {"enabled": want["required_conversation_resolution"]},
+        "allow_force_pushes": {"enabled": want["allow_force_pushes"]},
+        "allow_deletions": {"enabled": want["allow_deletions"]},
+    }
+elif path in state:
+    if body is not None:
+        update = json.loads(body)
+        security = update.pop("security_and_analysis", {})
+        if state[repo_path]["owner"]["type"] != "Organization":
+            security.pop("secret_scanning_non_provider_patterns", None)
+        state[path].setdefault("security_and_analysis", {}).update(security)
+        state[path].update(update)
+    state[path].update(fields())
+    if path.endswith("/oidc/customization/sub") and state[path].get("use_immutable_subject"):
+        state[path]["sub_claim_prefix"] = "repo:eduralph@1/demo@2"
+else:
+    fail("Not Found (HTTP 404)")  # e.g. code scanning on a private repo without it
+STATE.write_text(json.dumps(state, indent=1), encoding="utf-8")

@@ -1,0 +1,9 @@
+# The status checks the default branch requires, one per line. Each is a job name in
+# .github/workflows/. scripts/repo-settings.py reads this file from the default branch,
+# so a change here takes effect when it merges and `repo-settings.py apply` runs.
+dco
+docs-check
+docs-immutability
+gate
+require-linked-issue
+template-test

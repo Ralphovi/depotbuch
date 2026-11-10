@@ -1,0 +1,25 @@
+{
+ "repos/eduralph/demo/milestones": [],
+ "repos/eduralph/demo": {
+  "full_name": "eduralph/demo",
+  "default_branch": "main",
+  "visibility": "public",
+  "owner": {"login": "eduralph", "type": "User"},
+  "has_wiki": true,
+  "delete_branch_on_merge": false,
+  "security_and_analysis": {
+   "secret_scanning": {"status": "disabled"},
+   "secret_scanning_push_protection": {"status": "disabled"},
+   "secret_scanning_non_provider_patterns": {"status": "disabled"}
+  }
+ },
+ "repos/eduralph/demo/private-vulnerability-reporting": {"enabled": false},
+ "repos/eduralph/demo/automated-security-fixes": {"enabled": false, "paused": false},
+ "repos/eduralph/demo/code-scanning/default-setup": {"state": "not-configured"},
+ "repos/eduralph/demo/actions/permissions/workflow": {
+  "default_workflow_permissions": "write", "can_approve_pull_request_reviews": true
+ },
+ "repos/eduralph/demo/actions/oidc/customization/sub": {
+  "use_default": true, "use_immutable_subject": false, "sub_claim_prefix": "repo:eduralph/demo"
+ }
+}
