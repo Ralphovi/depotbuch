@@ -1,0 +1,128 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "depotbuch"
+version = "0.0.0"
+description = "Self-hosted portfolio tracker across all brokers and deposits, net of taxes"
+readme = "README.md"
+# Django 5.2 LTS is the newest Django that still supports Python 3.11, the floor the spec
+# sets. Django 6 needs 3.12 or later.
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Eduard Ralph", email = "eduard@ralphovi.net" }]
+keywords = ["portfolio", "performance", "ttwror", "irr", "ofx", "ofxstatement"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Web Environment",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: End Users/Desktop",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+# Only what the scaffold uses. ofxstatement, yfinance and the other adapters' libraries
+# land with the code that needs them. Every dependency must be GPL-compatible (spec,
+# non-functional requirements).
+dependencies = [
+    "Django>=5.2,<5.3",
+    "django-ninja>=1.8",
+    "pydantic>=2.11",
+]
+
+[project.scripts]
+depot = "depotbuch.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Ralphovi/depotbuch"
+Issues = "https://github.com/Ralphovi/depotbuch/issues"
+Source = "https://github.com/Ralphovi/depotbuch"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/depotbuch"]
+
+# ---------------------------------------------------------------------------
+# Lint / format. Single source: `nox -s gate` runs these; CI runs the same.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 96
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import sorting
+    "B",         # bugbear
+    "UP",        # pyupgrade
+    "SIM",       # simplify
+    "RUF",       # ruff-specific
+    "PL",        # pylint subset
+    "T20",       # no print() in library code
+    "S",         # bandit — security
+    "PT",        # pytest style
+    "TID",       # tidy imports
+    "DJ",        # flake8-django
+]
+ignore = [
+    "PLR0913",   # argument count — judged in review, not mechanically
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The Django layers are the only code allowed to import Django (see banned-api below).
+"src/depotbuch/web/**" = ["TID251"]
+"src/depotbuch/cli.py" = ["TID251"]
+"tests/web/**" = ["S101", "PLR2004", "TID251"]
+# Tests assert and hardcode sample data.
+"tests/**" = ["S101", "PLR2004"]
+# noxfile drives subprocesses by design.
+"noxfile.py" = ["S603", "S607"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# The engine and the adapters have no framework dependency, so Autobook can take the
+# engine over without Django (spec, Architecture). Enforced here rather than in review.
+"django".msg = "Only depotbuch.web and depotbuch.cli may import Django; the engine and adapters stay framework-free."
+"ninja".msg = "Only depotbuch.web may import Django Ninja."
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests", "noxfile.py"]
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+plugins = ["mypy_django_plugin.main", "pydantic.mypy"]
+
+[tool.django-stubs]
+django_settings_module = "depotbuch.web.settings"
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+DJANGO_SETTINGS_MODULE = "depotbuch.web.settings"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/depotbuch"]
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
