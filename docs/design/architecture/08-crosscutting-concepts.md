@@ -108,11 +108,15 @@ when the same ISIN sits in two depots, and so the parallel run.
 ## 8.4 Performance and taxes
 
 - **TTWROR** splits the range at every activity and chains daily sub-period returns:
-  inflows enter at the start of the day, outflows and income at the end. Fees are part of
-  inflows and outflows, so they reduce the return. Shown for the range, never annualized. A
+  inflows enter at the start of the day, outflows and income at the end. Income counts as
+  a flow only when it is paid out of the slice: income credited to an account inside it
+  (interest staying on Tagesgeld, a dividend landing on an included Verrechnungskonto) is
+  already in the value. Taxes on a sale are deducted once, from its proceeds. Fees are part
+  of inflows and outflows, so they reduce the return. Shown for the range, never annualized. A
   range with no start value and no inflows has no TTWROR (shown as —).
 - **IZF** is the annualized internal rate of return, with the start value as an outflow on
-  the first day and the end value as an inflow on the last.
+  the first day and the end value as an inflow on the last. Income counts as a cash
+  flow on the same rule as for TTWROR.
 - **Taxes are deducted by default** (withholding, Abgeltungsteuer, Soli, church tax; refunds
   negative). A tax on a sale or dividend belongs to that asset; a tax reported only as a
   yearly total belongs to the provider, so provider and portfolio figures stay right.
