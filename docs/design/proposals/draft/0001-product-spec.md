@@ -13,8 +13,9 @@ tags:
 Taken from the product spec of 9 November 2026, reordered to follow the proposal template.
 Corrections since, all under *Calculations* and from review: income that stays inside the
 selected slice and taxes on sales are each counted once (the spec counted both twice);
-deliveries enter performance at market value, not cost basis; dividends go to the lots
-held before the ex-date, not on the payment date.
+deliveries enter performance at market value, not cost basis; days with nothing invested are
+neutral in TTWROR; dividends go to the lots held before the ex-date, not on the payment
+date.
 
 ## Motivation
 
@@ -196,6 +197,19 @@ Every figure is computed in EUR, after taxes, for a time range (YTD, 1 year, sin
 ```
 
 V is the slice's value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals, after the fees and taxes on them. D is income paid out of the slice that day, before tax, and T the tax withheld on it, so D − T is the net income that left the slice. Income credited to an account inside the slice (interest staying on Tagesgeld, a dividend landing on a Verrechnungskonto that the slice includes) is already in V and is not added as D. Taxes on sales are deducted once, in S, and are not part of T. Fees are included in B and S, so they also reduce the return. A delivery in or out enters B or S at its market value on the transfer date (units × close × FX), not at its cost basis, so a gain earned before the transfer is not counted as return of the slice; the cost basis stays with the lot for invested capital and realized gains. A transfer between two accounts inside the slice is not a flow.
+
+A day on which the slice holds nothing, so that V<sub>d−1</sub> + B<sub>d</sub> = 0 and V<sub>d</sub> + S<sub>d</sub> = 0, is a neutral factor of 1: the product runs over invested days only. That covers a gap between a full sale and a later repurchase, and a range that starts before the first inflow. Income arriving on such a day follows the full-sale rule under *Lots*. Hand-computed case for a single security:
+
+| Day | Activity | V<sub>d−1</sub> + B<sub>d</sub> | V<sub>d</sub> + S<sub>d</sub> | Factor |
+| --- | --- | --- | --- | --- |
+| 1 | Buy for 100 | 0 + 100 | 100 + 0 | 1 |
+| 2 | Close rises 10 % | 100 + 0 | 110 + 0 | 1.1 |
+| 3 | Sell all for 110 | 110 + 0 | 0 + 110 | 1 |
+| 4–9 | Nothing held | 0 + 0 | 0 + 0 | 1 (neutral) |
+| 10 | Buy for 200 | 0 + 200 | 200 + 0 | 1 |
+| 11 | Close rises 10 % | 200 + 0 | 220 + 0 | 1.1 |
+
+TTWROR for days 1–11 is 1.1 × 1.1 − 1 = 21 %.
 
 **Parqet-compatible mode** (`--parqet`). Follows Parqet's FAQ for a portfolio with a cash account: taxes and fees on buys, sales and dividends are not counted as a loss of return, while costs booked directly to the cash account (custody or account fees) still reduce it. Used only for the parallel run.
 
