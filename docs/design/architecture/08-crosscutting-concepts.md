@@ -97,9 +97,14 @@ one, otherwise at the ECB rate for that day. Foreign-currency assets include the
 ## 8.3 Lots and FIFO
 
 Each buy or delivery in opens a lot. Sales close lots first-in first-out within the same
-account, as German tax law does. Dividends are split across the lots held on the payment
-date in proportion to units. Splits restate history onto the current basis. A dividend paid
-after a full sale is added to the position's last held day. Average and LIFO are later
+account, as German tax law does. A delivery in keeps its stated cost basis on the lot, while
+performance counts it at market value on the transfer date (§8.4). Dividends are split
+across the lots held at the end of the day before the ex-date, in proportion to units; the
+payment date stays the date of the income flow. Without an ex-date, the lots held on the
+payment date are used and the split is marked as approximate. **[OPEN]** Which sources give
+the ex-date: OFX `INCOME` and the Parqet CSV do not. Splits restate history onto the current
+basis. A dividend paid after a full sale belongs to the lots held before the ex-date;
+without an ex-date it is added to the position's last held day. Average and LIFO are later
 options; because lots are derived, adding them needs no migration.
 
 **[OPEN]** Does Parqet apply FIFO per sub-depot or per portfolio? This changes realized gains
@@ -112,7 +117,9 @@ when the same ISIN sits in two depots, and so the parallel run.
   a flow only when it is paid out of the slice: income credited to an account inside it
   (interest staying on Tagesgeld, a dividend landing on an included Verrechnungskonto) is
   already in the value. Taxes on a sale are deducted once, from its proceeds. Fees are part
-  of inflows and outflows, so they reduce the return. Shown for the range, never annualized. A
+  of inflows and outflows, so they reduce the return. A delivery in or out counts at market
+  value on the transfer date, so a gain earned before the transfer is not return of the
+  slice; a transfer between two accounts inside the slice is no flow at all. Shown for the range, never annualized. A
   range with no start value and no inflows has no TTWROR (shown as —).
 - **IZF** is the annualized internal rate of return, with the start value as an outflow on
   the first day and the end value as an inflow on the last. Income counts as a cash
