@@ -8,4 +8,9 @@ Name files after what they show, for example `c4-context.mermaid`, `c4-container
 Example: wyrd's
 [diagrams](https://github.com/getwyrd/wyrd/tree/main/docs/design/architecture/diagrams).
 
-`c4-context.mermaid` below is a starting point for §3; replace it with the real system.
+| File | Shows | Used in |
+|------|-------|---------|
+| [`c4-context.mermaid`](c4-context.mermaid) | depotbuch, its user and every external system | [§3](../03-context-and-scope.md) |
+
+Smaller diagrams (containers, the domain model, sequences) are inline in the section that
+explains them, so they render on GitHub next to their text.
