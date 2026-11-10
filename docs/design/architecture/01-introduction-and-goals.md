@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: architecture
 status: living
 tags:
@@ -7,7 +7,7 @@ tags:
 ---
 # 1. Introduction and goals
 
-> Living document. What {{PROJECT_NAME}} is and why. Open questions are marked **[OPEN]** inline.
+> Living document. What depotbuch is and why. Open questions are marked **[OPEN]** inline.
 
 > **How to fill this in:** What the system is, the one property users rely on most, the
 > ranked quality goals, who it is for, and what is out of scope. Keep it to what a newcomer

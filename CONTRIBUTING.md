@@ -1,11 +1,11 @@
-# Contributing to {{PROJECT_NAME}}
+# Contributing to depotbuch
 
 Thanks for contributing. Read the
-[shared contributing guide](https://github.com/{{OWNER}}/.github/blob/main/CONTRIBUTING.md)
+[shared contributing guide](https://github.com/Ralphovi/.github/blob/main/CONTRIBUTING.md)
 first. It covers when to open an issue before writing code, what won't be merged, and the
-rules for AI-assisted changes. This file adds what is specific to {{PROJECT_NAME}}.
+rules for AI-assisted changes. This file adds what is specific to depotbuch.
 
-This project is licensed under the {{LICENSE_NAME}} ([LICENSE](LICENSE)); contributions
+This project is licensed under the GNU General Public License v3.0 or later ([LICENSE](LICENSE)); contributions
 are accepted under the same license.
 
 ## Developer Certificate of Origin (sign-off)

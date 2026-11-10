@@ -1,4 +1,4 @@
-# Why "{{PROJECT_NAME}}"
+# Why "depotbuch"
 
 > **How to fill this in:** a few paragraphs on where the name comes from and what it is
 > meant to suggest, plus any naming scheme the project uses for its components. If the name

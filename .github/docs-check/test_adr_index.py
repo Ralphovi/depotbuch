@@ -156,7 +156,7 @@ MUST_PASS = {
     "consistent set": with_index(GOOD, GOOD_ROWS),
     "no ADRs at all": {"README.md": "# Readme\n"},
     "snake_case in an index title": with_index(GOOD, replace_row(
-        "0002", "| [0002](0002-license.md) | {{LICENSE_NAME}} and prompt_toolkit | Proposed |")),
+        "0002", "| [0002](0002-license.md) | GNU General Public License v3.0 or later and prompt_toolkit | Proposed |")),
     "status names the successor (nl-shell's and stemma's form)": with_index(
         {**GOOD, f"{ADR}/0003-old-way.md": adr("0003", "Old way", "Superseded by ADR-0004")}, GOOD_ROWS),
     "status names two successors": with_index(

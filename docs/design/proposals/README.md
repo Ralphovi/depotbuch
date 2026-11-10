@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: index
 tags:
   - proposal

@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: index
 tags:
   - adr
@@ -53,7 +53,7 @@ frontmatter, and both sides of every supersession agree. Run
 | # | Title | Status |
 |---|-------|--------|
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions | Accepted |
-| [0002](0002-license-and-dco.md) | {{LICENSE_NAME}} and DCO sign-off | Proposed |
+| [0002](0002-license-and-dco.md) | GNU General Public License v3.0 or later and DCO sign-off | Proposed |
 | [0003](0003-proposal-and-spec-process.md) | Proposal and specification process, lifecycle, and immutability | Accepted |
 | [0004](0004-supersession.md) | How a frozen document is superseded | Accepted |
 | [0005](0005-issue-priority-and-automated-triage.md) | Issue priority: severity and reach set P0–P3, applied by hand or by a bot | Proposed |

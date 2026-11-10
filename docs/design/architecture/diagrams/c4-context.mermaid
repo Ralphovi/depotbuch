@@ -1,10 +1,10 @@
 %% C4 level 1: the system and who or what it talks to (architecture §3).
 %% Replace the placeholder people and systems with the real ones.
 C4Context
-  title System context for {{PROJECT_NAME}}
+  title System context for depotbuch
 
   Person(user, "User", "Who uses the system and why")
-  System(system, "{{PROJECT_NAME}}", "{{PROJECT_DESCRIPTION}}")
+  System(system, "depotbuch", "Self-hosted portfolio tracker across all brokers and deposits, net of taxes — a Parqet replacement")
   System_Ext(external, "External system", "Something the system depends on or serves")
 
   Rel(user, system, "Uses")

@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: governance
 status: ratified
 tags:
@@ -22,7 +22,7 @@ tags:
 
 ## Purpose
 
-{{PROJECT_NAME}} is an open-source project built initially by a small team and dependent on outside contributors (see [ADR-0001](../design/adr/0001-record-architecture-decisions.md)). This document makes explicit *who holds which responsibilities* and *how decisions are made*, so that authority is stated rather than assumed.
+depotbuch is an open-source project built initially by a small team and dependent on outside contributors (see [ADR-0001](../design/adr/0001-record-architecture-decisions.md)). This document makes explicit *who holds which responsibilities* and *how decisions are made*, so that authority is stated rather than assumed.
 
 It complements, and does not override, the per-class processes documented elsewhere: architecture decisions follow [ADR-0001](../design/adr/0001-record-architecture-decisions.md), enhancement proposals follow `../design/proposals/`, and specifications follow `../design/specs/`.
 
@@ -59,7 +59,7 @@ Maintainers review and **merge** contributions, triage, set day-to-day direction
 
 ### Founding maintainer
 
-A rule that maintainers are elected by maintainers needs a seed. **{{AUTHOR}} is the founding (first) maintainer**, by virtue of starting the project; the maintainer group grows from there by election. The founding maintainer is a full Maintainer who additionally holds **bootstrap authority** until the maintainer group and the board are established — sole maintainer, and sole elector and **chair** of the initial board. This authority is **transitional** and dissolves once the board is constituted (after which the board elects its own chair); the founding maintainer holds **no standing power** beyond it.
+A rule that maintainers are elected by maintainers needs a seed. **Eduard R. is the founding (first) maintainer**, by virtue of starting the project; the maintainer group grows from there by election. The founding maintainer is a full Maintainer who additionally holds **bootstrap authority** until the maintainer group and the board are established — sole maintainer, and sole elector and **chair** of the initial board. This authority is **transitional** and dissolves once the board is constituted (after which the board elects its own chair); the founding maintainer holds **no standing power** beyond it.
 
 The founding maintainer may be elected board chair like any member, but does not hold it automatically. The founding-maintainer role **voids after one year of inactivity** and is then **left empty** — not re-filled or inherited; the project then continues under the maintainers and the board.
 
@@ -110,4 +110,4 @@ Changes are made by pull request and require the **approval of all maintainers**
 
 ## Contact
 
-Questions or concerns about governance, conduct, or project policy: **{{CONTACT_EMAIL}}**.
+Questions or concerns about governance, conduct, or project policy: **policy@ralphovi.net**.

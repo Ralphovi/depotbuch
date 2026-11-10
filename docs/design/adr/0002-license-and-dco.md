@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: adr
 status: Proposed
 tags:
@@ -7,7 +7,7 @@ tags:
   - governance
   - licensing
 ---
-# 0002. {{LICENSE_NAME}} and DCO sign-off
+# 0002. GNU General Public License v3.0 or later and DCO sign-off
 
 > **How to fill this in:** `init-repo.sh` set the license name from your choice. Add a
 > sentence to *Context* saying who the users are and why this license suits them (wyrd's
@@ -20,12 +20,12 @@ tags:
 
 ## Context
 
-{{PROJECT_NAME}} is public. Users need a clear license, and the project needs to know it may
+depotbuch is public. Users need a clear license, and the project needs to know it may
 use what contributors send, without paperwork that deters small contributions.
 
 ## Decision
 
-{{PROJECT_NAME}} is licensed under the **{{LICENSE_NAME}}** (`LICENSE`).
+depotbuch is licensed under the **GNU General Public License v3.0 or later** (`LICENSE`).
 
 Contribution provenance is tracked with the **Developer Certificate of Origin** (DCO, the
 `DCO` file), not a Contributor License Agreement (CLA). Each commit carries a

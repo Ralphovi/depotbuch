@@ -6,4 +6,3 @@ docs-check
 docs-immutability
 gate
 require-linked-issue
-template-test

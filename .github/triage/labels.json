@@ -27,6 +27,6 @@
     "needs-triage": {"color": "e4e669", "description": "Severity or reach could not be placed; says what is missing"}
   },
   "owners": {
-    "*": "{{MAINTAINER}}"
+    "*": "eduralph"
   }
 }

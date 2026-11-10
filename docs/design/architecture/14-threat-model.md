@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: architecture
 status: living
 tags:
@@ -10,7 +10,7 @@ tags:
 # 14. Threat model
 
 > Living document. What is worth attacking, where the trust boundaries are, who the
-> adversaries are, and which attacks {{PROJECT_NAME}} must withstand, each mapped to what
+> adversaries are, and which attacks depotbuch must withstand, each mapped to what
 > mitigates it and the test that checks it. Open questions are marked **[OPEN]** inline.
 
 > **How to fill this in:** start small and grow it as surfaces are built; a threat model is

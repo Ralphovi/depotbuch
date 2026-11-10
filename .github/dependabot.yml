@@ -4,6 +4,15 @@
 # releases get a week to show problems. Security updates ignore the cooldown.
 version: 2
 updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

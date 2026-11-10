@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: adr
 status: Accepted
 tags:
@@ -11,7 +11,7 @@ tags:
 
 ## Context
 
-{{PROJECT_NAME}} makes decisions early that later work depends on. Without a durable record,
+depotbuch makes decisions early that later work depends on. Without a durable record,
 the same questions come back in every issue and pull request, and the reasons are lost when
 the code changes.
 

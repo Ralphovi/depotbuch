@@ -6,7 +6,7 @@
      narrow the Scope section to what is and isn't a vulnerability for this project.
      Example: https://github.com/getwyrd/wyrd/blob/main/SECURITY.md -->
 
-{{PROJECT_NAME}} is early software. We still want to hear about vulnerabilities early,
+depotbuch is early software. We still want to hear about vulnerabilities early,
 including in the design itself.
 
 The threat model (assets, trust boundaries, adversaries and the attacks the project must
@@ -28,8 +28,8 @@ before public disclosure.
 
 Please report suspected vulnerabilities **privately**, not in a public issue or pull
 request. Use **Report a vulnerability** on the repository's
-[Security tab](https://github.com/{{OWNER}}/{{PROJECT_NAME}}/security/advisories/new), or
-email **{{CONTACT_EMAIL}}**, with:
+[Security tab](https://github.com/Ralphovi/depotbuch/security/advisories/new), or
+email **policy@ralphovi.net**, with:
 
 - a description of the issue and its impact,
 - the steps or proof of concept needed to reproduce it, and

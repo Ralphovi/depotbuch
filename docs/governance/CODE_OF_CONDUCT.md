@@ -1,5 +1,5 @@
 ---
-created: {{DATE}}
+created: 10.11.2026 19:03
 type: governance
 status: adopted
 tags:
@@ -9,17 +9,17 @@ tags:
 ---
 # Code of Conduct — adoption of Contributor Covenant 3.0 
 
-> **Status: ADOPTED.** {{PROJECT_NAME}} adopts the [Contributor Covenant 3.0](https://www.contributor-covenant.org/version/3/0/) (below). The **project principles** below adapt [The Apache Way](https://apache.org/theapacheway/). In {{PROJECT_NAME}}, the Covenant's "Community Moderators" are the **maintainers and the architecture board**; violations are reported to **{{CONTACT_EMAIL}}**; and removing an Associate, Maintainer, or board member as enforcement follows the *Removal for cause* process in [GOVERNANCE.md](GOVERNANCE.md). Contributor Covenant 3.0 is licensed CC BY-SA 4.0; this adaptation is shared under the same licence.
+> **Status: ADOPTED.** depotbuch adopts the [Contributor Covenant 3.0](https://www.contributor-covenant.org/version/3/0/) (below). The **project principles** below adapt [The Apache Way](https://apache.org/theapacheway/). In depotbuch, the Covenant's "Community Moderators" are the **maintainers and the architecture board**; violations are reported to **policy@ralphovi.net**; and removing an Associate, Maintainer, or board member as enforcement follows the *Removal for cause* process in [GOVERNANCE.md](GOVERNANCE.md). Contributor Covenant 3.0 is licensed CC BY-SA 4.0; this adaptation is shared under the same licence.
 
 > **How to fill this in:** the Contributor Covenant text is standard; leave it as is. Check
-> the project principles at the top and the reporting address ({{CONTACT_EMAIL}}), which must
+> the project principles at the top and the reporting address (policy@ralphovi.net), which must
 > be a mailbox someone reads. Reference: wyrd's
 > [CODE_OF_CONDUCT.md](https://github.com/getwyrd/wyrd/blob/main/docs/governance/CODE_OF_CONDUCT.md).
 > Delete this block once you have reviewed it.
 
 ## Project principles
 
-{{PROJECT_NAME}}'s project principles adapt **[The Apache Way](https://apache.org/theapacheway/)** — the operating philosophy of the Apache Software Foundation:
+depotbuch's project principles adapt **[The Apache Way](https://apache.org/theapacheway/)** — the operating philosophy of the Apache Software Foundation:
 
 - **Community over code.** A healthy community is the higher priority; strong communities fix code problems, and the foundation is meant to outlast any single contribution or contributor.
 - **Earned authority.** Everyone may take part; influence is earned through publicly visible merit, not employer or title. Merit does not expire — hence the emeritus path back into a former role.
@@ -27,7 +27,7 @@ tags:
 - **Open communication.** Decisions about the code and the project are made in the open and on the record — issues, pull requests, ADRs, and proposals — so anyone can follow along and join asynchronously.
 - **Consensus, with a vote to unblock.** We seek consensus to keep momentum; where a decision must be forced, the documented maintainer and board thresholds resolve it.
 - **Responsible oversight.** Governance is principles-based and self-governing: peer review, license compliance (DCO — ADR-0002), security, and care for the community are shared duties — the maintainers' and the board's most of all.
-- **Independence.** {{PROJECT_NAME}} is vendor-neutral: no organization gains special privilege or directional control through employment or sponsorship.
+- **Independence.** depotbuch is vendor-neutral: no organization gains special privilege or directional control through employment or sponsorship.
 
 ## Our Pledge
 
@@ -72,7 +72,7 @@ We agree to restrict the following behaviors in our community. Instances, threat
 
 Tensions can occur between community members even when they are trying their best to collaborate. Not every conflict represents a code of conduct violation, and this Code of Conduct reinforces encouraged behaviors and norms that can help avoid conflicts and minimize harm.
 
-When an incident does occur, it is important to report it promptly. To report a possible violation, **email {{CONTACT_EMAIL}}**.
+When an incident does occur, it is important to report it promptly. To report a possible violation, **email policy@ralphovi.net**.
 
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing witnesses and other participants. Community Moderators will keep investigation and enforcement actions as transparent as possible while prioritizing safety and confidentiality. In order to honor these values, enforcement actions are carried out in private with the involved parties, but communicating to the whole community may be part of a mutually agreed upon resolution.
 

@@ -1,4 +1,4 @@
-# Agent context — {{PROJECT_NAME}}
+# Agent context — depotbuch
 
 Rules for any coding agent (Claude, Codex, or other) working **on this repository**.
 [CONTRIBUTING.md](CONTRIBUTING.md) governs humans and agents alike; this file adds the
@@ -16,7 +16,7 @@ agent-specific discipline.
 
 - Do implementation work in a dedicated Git worktree, not in the user's active
   checkout, unless the user explicitly asks otherwise.
-- Name worktrees by task or branch, for example `../{{PROJECT_NAME}}-fix-timeout`.
+- Name worktrees by task or branch, for example `../depotbuch-fix-timeout`.
 - Before editing, inspect `git status -sb` in both the active checkout and the
   worktree you plan to use. Do not overwrite unrelated user changes.
 - Keep each worktree scoped to one PR-sized change. If a task splits, create a
