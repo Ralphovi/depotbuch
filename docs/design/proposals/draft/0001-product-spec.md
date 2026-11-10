@@ -10,8 +10,9 @@ tags:
 ---
 # Proposal: depotbuch product spec (Parqet replacement)
 
-Taken from the product spec of 9 November 2026. The content is unchanged; only the order
-follows the proposal template.
+Taken from the product spec of 9 November 2026, reordered to follow the proposal template.
+One correction since: under *Calculations*, income that stays inside the selected slice and
+taxes on sales are each counted once (the spec counted both twice).
 
 ## Motivation
 
@@ -182,7 +183,7 @@ Every figure is computed in EUR, after taxes, for a time range (YTD, 1 year, sin
 | Realized gain (realisierter Gewinn) | Sale proceeds after fees and taxes − FIFO cost of the units sold |
 | Income (Dividenden) | Dividends, distributions and interest, net of withheld tax |
 | Taxes | Withholding, Abgeltungsteuer, Soli and church tax on sales, dividends and interest; tax refunds negative |
-| Absolute gain for a range | End value − start value − inflows + outflows + income, all after taxes |
+| Absolute gain for a range | End value − start value − inflows + outflows + income paid out of the slice, all after taxes |
 | TTWROR | Linked sub-period returns, defined below; never annualized |
 | IZF | Annualized internal rate of return, defined below |
 
@@ -192,7 +193,7 @@ Every figure is computed in EUR, after taxes, for a time range (YTD, 1 year, sin
 1 + \mathrm{TTWROR} = \prod_{d} \frac{V_d + S_d + D_d - T_d}{V_{d-1} + B_d}
 ```
 
-V is value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals. D is income before tax and T the taxes paid that day, so D − T is net income. Taxes on sales reduce S. Fees are included in B and S, so they also reduce the return.
+V is the slice's value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals, after the fees and taxes on them. D is income paid out of the slice that day, before tax, and T the tax withheld on it, so D − T is the net income that left the slice. Income credited to an account inside the slice (interest staying on Tagesgeld, a dividend landing on a Verrechnungskonto that the slice includes) is already in V and is not added as D. Taxes on sales are deducted once, in S, and are not part of T. Fees are included in B and S, so they also reduce the return.
 
 **Parqet-compatible mode** (`--parqet`). Follows Parqet's FAQ for a portfolio with a cash account: taxes and fees on buys, sales and dividends are not counted as a loss of return, while costs booked directly to the cash account (custody or account fees) still reduce it. Used only for the parallel run.
 
@@ -202,7 +203,7 @@ V is value at end of day. B is inflows: buys, deliveries in, deposits, pension c
 -V_0 + \sum_i \frac{CF_i}{(1+r)^{t_i/365}} + \frac{V_T}{(1+r)^{T/365}} = 0
 ```
 
-CF is −inflows + outflows + net income, all after fees and taxes.
+CF is −inflows + outflows + net income paid out of the slice, all after fees and taxes. As for TTWROR, income that stays inside the slice is already in the end value and is not a flow.
 
 **Lots.** Each buy or delivery in opens a lot. Sales close lots first-in first-out within the same account, as German tax law does. Dividends are split across the lots held on the payment date, in proportion to units. A lot reports cost, value, dividends, gain after tax, return since purchase, and the annualized return once it is at least 365 days old. Deposits and contracts have no lots; their since-purchase figure is the IZF from the first inflow.
 
