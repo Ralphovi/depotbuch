@@ -15,9 +15,8 @@ depotbuch is public, and its users are individuals who run it on their own serve
 their own financial data. Users need a clear license, and the project needs to know it may
 use what contributors send, without paperwork that deters small contributions.
 
-The license is largely set by a dependency. Statements in a bank's own formats enter
-through ofxstatement (proposal 0001, *Data ingestion*; the Parqet CSV migration and manual
-entry are the only other paths): `depot import` loads the user's ofxstatement plugins
+The license is largely set by a dependency. Statements in a bank's own formats (PDF,
+CSV) enter through ofxstatement plugins (proposal 0001, *Data ingestion*): `depot import` loads the user's ofxstatement plugins
 in-process and renders statements with ofxstatement's own writer. ofxstatement is licensed
 under the GPL v3, and so are the Consorsbank and Scalable plugins depotbuch reads first;
 the Revolut plugin declares GPL v3 in its package metadata. Importing them into the same
