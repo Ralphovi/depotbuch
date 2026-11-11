@@ -30,7 +30,8 @@ step. A reconciliation outside the repository has already shown that it is usabl
   the bank's 37 quarterly and annual holdings statements exactly, and each statement's
   positions sum to its stated total.
 - FIFO cost, with fees in the cost basis, reproduces the taxable gain the bank reports for
-  both sales to within 1–2 cents. No rounding mode explains the remaining cents; finding out
+  both sales (proceeds after fees, less FIFO cost, less the 30 % partial exemption for
+  equity funds) to within 1–2 cents. No rounding mode explains the remaining cents; finding out
   what does is part of M1 (see *Open questions*).
 - The history holds savings plans, lump-sum buys and sales, reinvested distributions,
   Vorabpauschale notices, a federal bond bought with accrued interest and its coupons, and
@@ -88,7 +89,7 @@ cash = "-555.00"
 date = 2024-06-03
 type = "sell"
 asset = "X1"
-units = "12"
+units = "-12"             # signed as in proposal 0001's activity mapping
 cash = "1435.05"          # 1440.00 − 4.95 fees
 fees = "4.95"
 
@@ -114,16 +115,17 @@ rules it implements and runs the private reconciliation for those rules before i
 | # | Pull request | Rules (proposal 0001) | Done when |
 |---|---|---|---|
 | 1 | **Types and case harness.** `Money` (Decimal plus currency), asset, account and activity types (pydantic); the rounding policy; the TOML case loader and the private-corpus runner. | *Money and numbers* (arch. §8.6) | A case file loads into engine types and round-trips; floats are rejected; the private runner skips cleanly without the variable. |
-| 2 | **Holdings and FIFO lots.** Buys, sales, deliveries in and out, splits; fees in the cost basis; nominal-quoted bonds; invested capital and realized gain. | *Lots*, *Edge cases* (splits) | Public cases for partial sales across lots, a split, a delivery with stated cost basis; property: lots sum to holdings. Private: units match every holdings statement, and both sale gains match the bank within the tolerance set under *Open questions*. |
+| 2 | **Holdings and FIFO lots.** Buys, sales, deliveries in and out, splits; fees in the cost basis; nominal-quoted bonds; invested capital and realized gain. | *Lots*, *Edge cases* (splits) | Public cases for partial sales across lots, a split, a delivery with stated cost basis; property: lots sum to holdings. Private: units match every holdings statement, and for both sales the pre-tax FIFO gain after the partial exemption matches the bank's taxable gain within the tolerance set under *Open questions*. That comparison lives in the private harness; the engine's realized gain stays the after-tax figure 0001 defines. |
 | 3 | **Valuation per asset type.** Security units × close × FX, a bond as nominal × price in percent, cash balances, Festgeld accrual, carry-forward over gaps. | *Valuation by asset type* (arch. §8.2) | Public cases for each asset type and an FX case; private: the value of each position in each holdings statement, from the statement's own price, to the cent. |
 | 4 | **Income and taxes.** Dividends split across lots by the day before the ex-date; withheld tax; tax attribution to the asset or the provider; Vorabpauschale. | *Lots* (dividends), *Taxes are attributed where they arise* | Public cases for a dividend after a partial sale, one without an ex-date (marked approximate), a year-end tax total on the provider; private: net income per distribution equals the notice. |
-| 5 | **Flows: the slice rule.** Classifying every booking into B, S, R or no flow for a given slice. | *Flows: the slice rule* | One public case per row of the classification table in 0001, for each slice the row names. |
-| 6 | **TTWROR and absolute gain.** | *TTWROR*, *Absolute gain* | The hand-computed case in 0001 and the dividend and fee examples there; property: TTWROR over a range equals the product over any split of it. |
-| 7 | **IZF.** Root finding on the daily flows, with the start and end value as flows. | *IZF* | Public cases with a known closed-form rate; property: NPV at the found rate is zero within 1e-9 of the flows' magnitude; no-solution and multiple-root cases are reported, not guessed. |
-| 8 | **Parqet-compatible mode.** | *Parqet-compatible mode* | Every case from PRs 4–7 that involves fees or taxes runs in both modes, with the expected `--parqet` result written out. |
+| 5 | **Trade-to-cash matching.** Pairing each investment activity with its cash line on the Verrechnungskonto by provider, amount and a booking date up to 3 business days later; listing what stays unmatched. | *No double counting* | Public cases for a match on the third business day, a near-miss on the fourth, two trades of equal amount, and an unmatched line on each side; property: no cash line is counted twice. |
+| 6 | **Flows: the slice rule.** Classifying every booking into B, S, R or no flow for a given slice. | *Flows: the slice rule* | One public case per row of the classification table in 0001, for each slice the row names. |
+| 7 | **TTWROR and absolute gain.** | *TTWROR*, *Absolute gain* | The hand-computed case in 0001 and the dividend and fee examples there; property: TTWROR over a range equals the product over any split of it. |
+| 8 | **IZF.** Root finding on the daily flows, with the start and end value as flows. | *IZF* | Public cases with a known closed-form rate; property: NPV at the found rate is zero within 1e-9 of the flows' magnitude; no-solution and multiple-root cases are reported, not guessed. |
+| 9 | **Parqet-compatible mode.** | *Parqet-compatible mode* | Every case from PRs 4–8 that involves fees or taxes runs in both modes, with the expected `--parqet` result written out. |
 
-PRs 5 to 7 depend on 2 to 4 only through the engine types, so 7 can start as soon as 1 has
-landed.
+The root finder in PR 8 depends on the other PRs only through the engine types, so it can
+start as soon as PR 1 has landed.
 
 ### Decisions this proposal makes
 
@@ -139,11 +141,6 @@ out foundational becomes an ADR instead.
   the provider's notice. Any tax withheld on it is a tax of that asset (R, negative, for the
   asset alone). The amount itself is no flow and no income, and is stored so that a later
   sale's taxable gain can be reduced by it.
-- **A correction replaces the activity with the same identity.** When a provider reissues a
-  confirmation under the same order number with changed figures, the newer one replaces the
-  older one (account + `FITID`). The engine only ever sees the current activity; the
-  replacement itself is import behaviour, recorded here so that M2 and M5 build it, and the
-  real case becomes a public fixture then.
 - **Bonds.** Units are the nominal amount and the price is in percent, so value is nominal
   × price / 100. Accrued interest paid on purchase is part of the buy's cash amount and so
   of invested capital; the coupon is income on its payment date. Whether depotbuch should
@@ -152,8 +149,8 @@ out foundational becomes an ADR instead.
 
 ### Out of scope for M1
 
-Trade-to-cash matching (M5), the importers and their correction handling (M2, M5), market
-data fetching (M3), storage (M4). The engine's tax figures are those the provider withholds
+The importers and their handling of corrections (M2, M5), market data fetching (M3),
+storage (M4). Matching is built here as an engine function; M5 feeds it real cash lines. The engine's tax figures are those the provider withholds
 or reports; computing German tax liability (allowance, loss pots, partial exemption) is not
 an engine feature. The private reconciliation reads those figures from the statements to
 check FIFO, not to reproduce the tax computation.
@@ -175,12 +172,13 @@ M1 is done when:
 
 1. Every calculation rule in proposal 0001 has at least one public hand-computed case, in
    default and `--parqet` mode where the modes differ (architecture §13).
-2. The Hypothesis properties hold: lots sum to holdings, and TTWROR is independent of how a
-   range is split.
+2. The Hypothesis properties hold: lots sum to holdings, no cash line is counted twice, and
+   TTWROR is independent of how a range is split.
 3. The private reconciliation of the Consorsbank history passes: units match every holdings
    statement, position values match each statement's prices to the cent, net income matches
-   every distribution notice, and both realized sales match the bank within the tolerance
-   decided under *Open questions*.
+   every distribution notice, and for both sales the pre-tax FIFO gain after the partial
+   exemption matches the bank's taxable gain within the tolerance decided under *Open
+   questions*.
 4. `nox -s gate` passes on Python 3.11 to 3.14, and the engine still imports without Django.
 
 ## Security impact
@@ -192,11 +190,12 @@ account numbers, names and the full transaction history:
 - It lives outside the repository and is named only by an environment variable, so it
   cannot be committed by accident.
 - CI never sets the variable; the runner skips without it.
-- Test failures from the private runner report case names and differences, never the
-  activities themselves, so a pasted test log doesn't leak a statement.
+- The private runner prints only case names, field names and pass or fail. Expected and
+  actual values, and the differences between them, go to a report file inside the corpus
+  directory, so a pasted test log or CI output carries no amounts.
 
-The PR that adds the runner updates the threat model (architecture §14 and
-`.oss-scanner/threat_model.md`) with this asset.
+This PR adds the private corpus to the threat model (architecture §14 and
+`.oss-scanner/threat_model.md`); the PR that adds the runner adds its test.
 
 ## Backward compatibility
 
@@ -217,6 +216,13 @@ and may change with the engine types.
   *Schlusstag* but no separate ex-date. If the Schlusstag is the last day that carries the
   entitlement, the lots held at its end are those 0001 asks for, which also answers part of
   0001's open question on ex-dates.
+- [ ] **Corrections and their order.** The Consorsbank history holds confirmations reissued
+  under the same order number with a changed cash amount, while architecture §8.7 skips an
+  activity whose account + `FITID` is already stored. Should a reissue replace the stored
+  activity, and how is "newer" decided when an original arrives after its correction: the
+  provider's document date, an explicit correction marker, or a conflict the owner resolves?
+  This is import behaviour, settled in M2 together with an update to §8.7; the engine only
+  ever sees the current activity.
 - [ ] **Further private corpora.** Scalable (statements and tax certificate from 2025 on)
   and the Revolut Tagesgeld (interest with foreign withholding tax, and closing the account)
   are next; do they belong in M1 or in the milestone that imports them?

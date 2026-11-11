@@ -53,6 +53,9 @@ PR number from the payload and posts a fixed comment. A change that adds an
 - No input file or provider response can execute code, read files or exhaust the server
   (for example through XML entity expansion in OFX).
 - The engine and adapters never import Django.
+- Real statement data never enters the repository, CI or a test log. The private test
+  corpus (proposal 0002) lives outside the repository, is named only by
+  `DEPOTBUCH_PRIVATE_CORPUS`, and its runner prints no amounts.
 
 ## Components that matter most
 
