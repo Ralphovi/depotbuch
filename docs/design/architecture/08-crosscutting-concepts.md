@@ -112,22 +112,25 @@ when the same ISIN sits in two depots, and so the parallel run.
 
 ## 8.4 Performance and taxes
 
-- **TTWROR** splits the range at every activity and chains daily sub-period returns:
-  inflows enter at the start of the day, outflows and income at the end. Income counts as
-  a flow only when it is paid out of the slice: income credited to an account inside it
-  (interest staying on Tagesgeld, a dividend landing on an included Verrechnungskonto) is
-  already in the value. An expense charged to the slice but paid from an account outside it
-  (a security expense booked on an excluded Verrechnungskonto) counts as negative income;
-  paid from inside the slice, it is already in the value. Taxes on a sale are deducted once, from its proceeds. Fees are part
-  of inflows and outflows, so they reduce the return. A delivery in or out counts at market
-  value on the transfer date, so a gain earned before the transfer is not return of the
-  slice; a transfer between two accounts inside the slice is no flow at all.
-  A day on which the slice holds nothing (between a full sale and a repurchase, or before
-  the first inflow) is a neutral factor of 1, so the product runs over invested days only. Shown for the range, never annualized. A
-  range with no start value and no inflows has no TTWROR (shown as —).
-- **IZF** is the annualized internal rate of return, with the start value as an outflow on
-  the first day and the end value as an inflow on the last. Income counts as a cash
-  flow on the same rule as for TTWROR.
+- **The slice rule decides what is a flow.** A slice is a set of holdings (a security in an
+  account, or an account's cash balance). Every booking, with its matched cash line, has an
+  asset side and a cash side. If both sides are inside the slice, the booking is no flow:
+  what it earns or costs is already in the slice's value. If one side is inside, it crosses
+  the slice's edge and is an inflow B (start of day), an outflow S (end of day), or return R
+  settled through an account outside the slice (end of day; income positive, expenses and
+  taxes negative). Capital crosses at what it is worth then: a trade at its cash amount
+  including its fees and taxes, a delivery at market value on the transfer date (its cost
+  basis stays with the lot). So a buy is a flow for the security alone but not for its
+  provider, a dividend is return for the security, no flow for the provider, and an inflow
+  for the Verrechnungskonto alone.
+- **TTWROR** chains daily factors (V<sub>d</sub> + S<sub>d</sub> + R<sub>d</sub>) /
+  (V<sub>d−1</sub> + B<sub>d</sub>). A day on which the slice holds nothing is a neutral
+  factor of 1. Shown for the range, never annualized; a range with no start value and no
+  inflows has no TTWROR (shown as —).
+- **Absolute gain** is V<sub>end</sub> − V<sub>start</sub> − ΣB + ΣS + ΣR.
+- **IZF** is the annualized internal rate of return over the daily cash flows −B + S + R,
+  with the start value as an outflow on the first day and the end value as an inflow on the
+  last.
 - **Taxes are deducted by default** (withholding, Abgeltungsteuer, Soli, church tax; refunds
   negative). A tax on a sale or dividend belongs to that asset; a tax reported only as a
   yearly total belongs to the provider, so provider and portfolio figures stay right.
@@ -135,14 +138,14 @@ when the same ISIN sits in two depots, and so the parallel run.
   and dividends do not reduce the return, while costs booked directly to the cash account
   still do. It exists only for the parallel run. **[OPEN] to record as ADR.**
 
-The formulas are in proposal 0001, *Calculations*.
+The formulas, the full classification table and the hand-computed cases are in proposal
+0001, *Calculations*.
 
 ## 8.5 Cash accounts and no double counting
 
-Each provider's Verrechnungskonto is an asset valued at its balance, so idle cash earns 0 %
-and lowers TTWROR, as in Parqet. For a single security, buys and sales are flows; for a
-provider or the portfolio they only move value between cash and the security, and the flows
-are transfers in or out of the cash account from untracked accounts such as the Girokonto.
+Each provider's Verrechnungskonto is a holding valued at its balance, so idle cash earns 0 %
+and lowers TTWROR, as in Parqet. Under the slice rule (§8.4), a provider's or the
+portfolio's flows are the transfers to and from untracked accounts such as the Girokonto.
 Whether a bank line is such a transfer is decided by the account configuration, not guessed.
 
 A trade appears twice, as an investment activity and as its cash line (for example `EFFEKTEN`
