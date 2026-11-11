@@ -53,9 +53,10 @@ The web front end follows the same last step through the Ninja API instead of th
 
 ## 6.2 Other important paths
 
-**Re-import and overlap.** An activity's identity is account plus `FITID` (a hash of the row
-for Parqet CSV). Importing the same file again adds nothing and reports every row as
-skipped. Overlapping statements are safe for the same reason.
+**Re-import and overlap.** An activity's identity is account plus `FITID` (for Parqet CSV, a hash of
+the row plus its occurrence number among identical rows in the file, so two identical buys
+on one day stay two activities). Importing the same file again adds nothing and reports
+every row as skipped. Overlapping statements are safe for the same reason.
 
 **A sale larger than the holding.** Rejected with the date and the missing units, because it
 means earlier activities are missing. Nothing is stored for that row; the rest of the file

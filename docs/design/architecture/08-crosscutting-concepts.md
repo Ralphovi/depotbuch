@@ -97,9 +97,14 @@ one, otherwise at the ECB rate for that day. Foreign-currency assets include the
 ## 8.3 Lots and FIFO
 
 Each buy or delivery in opens a lot. Sales close lots first-in first-out within the same
-account, as German tax law does. Dividends are split across the lots held on the payment
-date in proportion to units. Splits restate history onto the current basis. A dividend paid
-after a full sale is added to the position's last held day. Average and LIFO are later
+account, as German tax law does. A delivery in keeps its stated cost basis on the lot, while
+performance counts it at market value on the transfer date (§8.4). Dividends are split
+across the lots held at the end of the day before the ex-date, in proportion to units; the
+payment date stays the date of the income flow. Without an ex-date, the lots held on the
+payment date are used and the split is marked as approximate. **[OPEN]** Which sources give
+the ex-date: OFX `INCOME` and the Parqet CSV do not. Splits restate history onto the current
+basis. A dividend paid after a full sale belongs to the lots held before the ex-date;
+without an ex-date it is added to the position's last held day. Average and LIFO are later
 options; because lots are derived, adding them needs no migration.
 
 **[OPEN]** Does Parqet apply FIFO per sub-depot or per portfolio? This changes realized gains
@@ -107,12 +112,25 @@ when the same ISIN sits in two depots, and so the parallel run.
 
 ## 8.4 Performance and taxes
 
-- **TTWROR** splits the range at every activity and chains daily sub-period returns:
-  inflows enter at the start of the day, outflows and income at the end. Fees are part of
-  inflows and outflows, so they reduce the return. Shown for the range, never annualized. A
-  range with no start value and no inflows has no TTWROR (shown as —).
-- **IZF** is the annualized internal rate of return, with the start value as an outflow on
-  the first day and the end value as an inflow on the last.
+- **The slice rule decides what is a flow.** A slice is a set of holdings (a security in an
+  account, or an account's cash balance). Every booking, with its matched cash line, has an
+  asset side and a cash side. If both sides are inside the slice, the booking is no flow:
+  what it earns or costs is already in the slice's value. If one side is inside, it crosses
+  the slice's edge and is an inflow B (start of day), an outflow S (end of day), or return R
+  settled through an account outside the slice (end of day; income positive, expenses and
+  taxes negative). Capital crosses at what it is worth then: a trade at its cash amount
+  including its fees and taxes, a delivery at market value on the transfer date (its cost
+  basis stays with the lot). So a buy is a flow for the security alone but not for its
+  provider, a dividend is return for the security, no flow for the provider, and an inflow
+  for the Verrechnungskonto alone.
+- **TTWROR** chains daily factors (V<sub>d</sub> + S<sub>d</sub> + R<sub>d</sub>) /
+  (V<sub>d−1</sub> + B<sub>d</sub>). A day on which the slice holds nothing is a neutral
+  factor of 1. Shown for the range, never annualized; a range with no start value and no
+  inflows has no TTWROR (shown as —).
+- **Absolute gain** is V<sub>end</sub> − V<sub>start</sub> − ΣB + ΣS + ΣR.
+- **IZF** is the annualized internal rate of return over the daily cash flows −B + S + R,
+  with the start value as an outflow on the first day and the end value as an inflow on the
+  last.
 - **Taxes are deducted by default** (withholding, Abgeltungsteuer, Soli, church tax; refunds
   negative). A tax on a sale or dividend belongs to that asset; a tax reported only as a
   yearly total belongs to the provider, so provider and portfolio figures stay right.
@@ -120,14 +138,14 @@ when the same ISIN sits in two depots, and so the parallel run.
   and dividends do not reduce the return, while costs booked directly to the cash account
   still do. It exists only for the parallel run (ADR-0012, Proposed).
 
-The formulas are in proposal 0001, *Calculations*.
+The formulas, the full classification table and the hand-computed cases are in proposal
+0001, *Calculations*.
 
 ## 8.5 Cash accounts and no double counting
 
-Each provider's Verrechnungskonto is an asset valued at its balance, so idle cash earns 0 %
-and lowers TTWROR, as in Parqet. For a single security, buys and sales are flows; for a
-provider or the portfolio they only move value between cash and the security, and the flows
-are transfers in or out of the cash account from untracked accounts such as the Girokonto.
+Each provider's Verrechnungskonto is a holding valued at its balance, so idle cash earns 0 %
+and lowers TTWROR, as in Parqet. Under the slice rule (§8.4), a provider's or the
+portfolio's flows are the transfers to and from untracked accounts such as the Girokonto.
 Whether a bank line is such a transfer is decided by the account configuration, not guessed.
 
 A trade appears twice, as an investment activity and as its cash line (for example `EFFEKTEN`
@@ -148,7 +166,7 @@ engine milestone.
 
 ## 8.7 Imports: identity, reporting, nothing silent
 
-- An activity's identity is account plus `FITID`; Parqet rows use a hash of the row.
+- An activity's identity is account plus `FITID`; Parqet rows use a hash of the row plus its occurrence number among identical rows in the file.
 - The security key is the ISIN; tickers and WKNs are mapped once and remembered.
 - The account is `BROKERID:ACCTID` from the statement, overridable per import.
 - Each import reports added, skipped and rejected rows, and unmatched cash lines. Nothing is
