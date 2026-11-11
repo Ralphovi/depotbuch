@@ -9,23 +9,30 @@ tags:
 ---
 # 0002. GNU General Public License v3.0 or later and DCO sign-off
 
-> **How to fill this in:** `init-repo.sh` set the license name from your choice. Add a
-> sentence to *Context* saying who the users are and why this license suits them (wyrd's
-> example: commercial providers need a permissive license with a patent grant). If the
-> project depends on components at pluggable seams, consider adding dependency-selection
-> criteria as wyrd does in
-> [ADR-0003](https://github.com/getwyrd/wyrd/blob/main/docs/design/adr/0003-apache-2-license-and-dco.md).
-> It starts as **Proposed** so you can edit it: fill it in, delete this block, and set
-> `status: Accepted` (and update the index) in one pull request. After that it is frozen.
-
 ## Context
 
-depotbuch is public. Users need a clear license, and the project needs to know it may
+depotbuch is public, and its users are individuals who run it on their own server with
+their own financial data. Users need a clear license, and the project needs to know it may
 use what contributors send, without paperwork that deters small contributions.
+
+The license is largely set by a dependency. All broker data enters through ofxstatement
+(proposal 0001, *Data ingestion*): `depot import` loads the user's ofxstatement plugins
+in-process and renders statements with ofxstatement's own writer. ofxstatement is licensed
+under the GPL v3, and so are the Consorsbank and Scalable plugins depotbuch reads first;
+the Revolut plugin declares GPL v3 in its package metadata. Importing them into the same
+process makes depotbuch's distribution a GPL v3 matter.
+
+The version still matters. Apache-2.0 is compatible with GPL v3 but not with GPL v2, and
+depotbuch's price provider for step 1, yfinance, is Apache-2.0; its other dependencies are
+BSD and MIT (Django, Django Ninja, pydantic). Autobook, which may take over depotbuch's engine, is
+GPL-3.0-or-later as well.
 
 ## Decision
 
 depotbuch is licensed under the **GNU General Public License v3.0 or later** (`LICENSE`).
+The whole repository carries it; there is no split between a permissive engine and a GPL
+importer. Every dependency MUST be compatible with GPL v3: Apache-2.0, MIT and BSD are;
+GPL-2.0-only is not.
 
 Contribution provenance is tracked with the **Developer Certificate of Origin** (DCO, the
 `DCO` file), not a Contributor License Agreement (CLA). Each commit carries a
@@ -43,3 +50,10 @@ contributions later, is a power this project chooses not to hold.
 - Every contributor keeps their copyright, so the project cannot later be relicensed
   without their agreement.
 - Third-party material shipped with the project keeps its own license.
+- Apache-2.0 dependencies such as yfinance stay available; a GPL-2.0-only dependency does
+  not. A new dependency is checked against this before it is added.
+- Autobook can take over the engine without a license change, since both are
+  GPL-3.0-or-later.
+- Anyone distributing a modified depotbuch must ship its source under the same terms. For a
+  tool individuals run on their own server, this costs little and keeps the code that
+  computes their figures inspectable.
