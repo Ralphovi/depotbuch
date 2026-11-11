@@ -25,18 +25,18 @@ the same engine, the CLI, the API, the web views and the HTML report cannot disa
 
 | Problem | Strategy | ADR |
 |---------|----------|-----|
-| Re-imports, corrections and method changes (FIFO to average) should not need migrations. | Store activities only; derive holdings, lots and every report. | **[OPEN] to record as ADR** |
-| Autobook should be able to take over the engine; the numbers must be testable without a database. | Engine in plain Python with `Decimal` and pydantic types and no Django imports, enforced by a lint rule (ruff TID251 bans `django` outside `web/` and the CLI). | **[OPEN] to record as ADR** |
-| One parser per statement for GnuCash, Autobook and depotbuch. | All broker data through ofxstatement plugins; investment activity as `invest_lines`. | **[OPEN] to record as ADR** |
-| Prices for German listings without paying as much as Parqet Plus. | yfinance now; Interactive Brokers later as primary source; one provider interface chosen per security; manual CSV as fallback. | **[OPEN] to record as ADR** |
-| A web UI, an admin, an API and a CLI for one person, with little code. | Django + Django Ninja backend (OpenAPI), TypeScript SPA with a generated API client, CLI as management commands. | **[OPEN] to record as ADR** |
-| Python 3.11 support (spec) while Django 6 needs 3.12 or later. | Django 5.2 LTS. | **[OPEN] to record as ADR** |
-| Agreeing with Parqet for the parallel run while showing after-tax figures by default. | A `--parqet` mode that follows Parqet's FAQ on taxes and fees; used only for the parallel run. | **[OPEN] to record as ADR** |
+| Re-imports, corrections and method changes (FIFO to average) should not need migrations. | Store activities only; derive holdings, lots and every report. | [ADR-0006](../adr/0006-activities-as-the-only-stored-fact.md) (Proposed) |
+| Autobook should be able to take over the engine; the numbers must be testable without a database. | Engine in plain Python with `Decimal` and pydantic types and no Django imports, enforced by a lint rule (ruff TID251 bans `django` outside `web/` and the CLI). | [ADR-0007](../adr/0007-engine-without-a-framework.md) (Proposed) |
+| One parser per statement for GnuCash, Autobook and depotbuch. | All broker data through ofxstatement plugins; investment activity as `invest_lines`. | [ADR-0008](../adr/0008-ofxstatement-as-the-statement-input.md) (Proposed) |
+| Prices for German listings without paying as much as Parqet Plus. | yfinance now; Interactive Brokers later as primary source; one provider interface chosen per security; manual CSV as fallback. | [ADR-0009](../adr/0009-price-data-yfinance-then-ibkr.md) (Proposed) |
+| A web UI, an admin, an API and a CLI for one person, with little code. | Django + Django Ninja backend (OpenAPI), TypeScript SPA with a generated API client, CLI as management commands. | [ADR-0010](../adr/0010-django-ninja-and-a-typescript-front-end.md) (Proposed) |
+| Python 3.11 support (spec) while Django 6 needs 3.12 or later. | Django 5.2 LTS. | [ADR-0011](../adr/0011-django-5-2-lts-for-python-3-11.md) (Proposed) |
+| Agreeing with Parqet for the parallel run while showing after-tax figures by default. | A `--parqet` mode that follows Parqet's FAQ on taxes and fees; used only for the parallel run. | [ADR-0012](../adr/0012-parqet-compatible-mode.md) (Proposed) |
 | Trades appear twice: as investment activity and as a cash line. | Match each trade to its cash line by provider, amount and up to 3 business days; report unmatched lines. | Part of the calculation rules (proposal 0001) |
 
 ADR-0001 to ADR-0005 cover the project's process (decision records, license and DCO,
-proposals and specs, supersession, issue triage); none of the product decisions above is
-recorded yet.
+proposals and specs, supersession, issue triage); ADR-0006 to ADR-0012 record the product
+decisions above and await acceptance.
 
 ## 4.3 Build strategy
 
