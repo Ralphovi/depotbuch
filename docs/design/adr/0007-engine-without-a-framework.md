@@ -32,9 +32,11 @@ Django models store only what the engine reads; the web layer and the CLI conver
 models and engine types. Every interface calls the same engine, so a figure is computed in
 one place only.
 
-The rule is enforced in the gate twice: ruff's banned-API rule (TID251) rejects a direct
-import, and `tests/test_boundaries.py` imports both packages in a fresh interpreter and fails
-if either framework was loaded.
+The gate enforces this for the frameworks the project uses, Django and Django Ninja, twice:
+ruff's banned-API rule (TID251) rejects a direct import, and `tests/test_boundaries.py`
+imports both packages in a fresh interpreter and fails if either was loaded. Both checks
+list the frameworks by name, so a framework added to the project later MUST be added to
+both lists in the same change; any other framework is kept out by review.
 
 ## Consequences
 

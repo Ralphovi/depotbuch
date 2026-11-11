@@ -27,10 +27,11 @@ account above the USD 500 equity minimum.
 ## Decision
 
 We will use yfinance as the price provider for step 1 and replace it with Interactive
-Brokers as the primary source later. Prices, splits and FX go through one provider
+Brokers as the primary source later. Closes and splits go through one price-provider
 interface in the adapters, with the provider chosen per security, so switching a security
 needs no change elsewhere. A manual CSV provider covers anything neither source has. FX
-rates come from the ECB unless a statement gives the broker's rate.
+rates are a separate adapter, looked up by currency pair and date rather than by security:
+they come from the ECB unless a statement gives the broker's rate.
 
 Closes are adjusted for splits but not for dividends, since dividends are booked as
 activities. Updates are incremental, from the newest stored date minus 7 days.
