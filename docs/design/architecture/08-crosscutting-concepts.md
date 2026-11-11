@@ -116,7 +116,9 @@ when the same ISIN sits in two depots, and so the parallel run.
   inflows enter at the start of the day, outflows and income at the end. Income counts as
   a flow only when it is paid out of the slice: income credited to an account inside it
   (interest staying on Tagesgeld, a dividend landing on an included Verrechnungskonto) is
-  already in the value. Taxes on a sale are deducted once, from its proceeds. Fees are part
+  already in the value. An expense charged to the slice but paid from an account outside it
+  (a security expense booked on an excluded Verrechnungskonto) counts as negative income;
+  paid from inside the slice, it is already in the value. Taxes on a sale are deducted once, from its proceeds. Fees are part
   of inflows and outflows, so they reduce the return. A delivery in or out counts at market
   value on the transfer date, so a gain earned before the transfer is not return of the
   slice; a transfer between two accounts inside the slice is no flow at all.
