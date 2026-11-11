@@ -30,8 +30,9 @@ GPL-3.0-or-later as well.
 ## Decision
 
 depotbuch is licensed under the **GNU General Public License v3.0 or later** (`LICENSE`).
-The whole repository carries it; there is no split between a permissive engine and a GPL
-importer. Every dependency MUST be compatible with GPL v3: Apache-2.0, MIT, BSD-2-Clause and
+The code carries it as a whole; there is no split between a permissive engine and a GPL
+importer. Third-party material keeps its own license, such as the Code of Conduct, adapted
+from the Contributor Covenant under CC BY-SA 4.0. Every dependency MUST be compatible with GPL v3: Apache-2.0, MIT, BSD-2-Clause and
 BSD-3-Clause are; GPL-2.0-only and the original 4-clause BSD license (its advertising
 clause) are not.
 
