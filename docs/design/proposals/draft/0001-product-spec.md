@@ -11,11 +11,12 @@ tags:
 # Proposal: depotbuch product spec (Parqet replacement)
 
 Taken from the product spec of 9 November 2026, reordered to follow the proposal template.
-Corrections since, all under *Calculations* and from review: income that stays inside the
-selected slice and taxes on sales are each counted once (the spec counted both twice);
-deliveries enter performance at market value, not cost basis; days with nothing invested are
-neutral in TTWROR; expenses paid from outside the slice reduce the return; dividends go to
-the lots held before the ex-date, not on the payment date.
+Corrections since, all under *Calculations* and from review: the performance flows are
+restated around one rule, whether a booking crosses the edge of the selected slice. That
+fixes five gaps in the spec's case-by-case definitions: income retained inside the slice and
+taxes on sales were counted twice, deliveries entered at cost basis instead of market value,
+days with nothing invested made TTWROR undefined, and expenses paid from outside the slice
+were missed. Dividends go to the lots held before the ex-date, not on the payment date.
 
 ## Motivation
 
@@ -186,32 +187,55 @@ Every figure is computed in EUR, after taxes, for a time range (YTD, 1 year, sin
 | Realized gain (realisierter Gewinn) | Sale proceeds after fees and taxes − FIFO cost of the units sold |
 | Income (Dividenden) | Dividends, distributions and interest, net of withheld tax |
 | Taxes | Withholding, Abgeltungsteuer, Soli and church tax on sales, dividends and interest; tax refunds negative |
-| Absolute gain for a range | End value − start value − inflows + outflows + income paid out of the slice, all after taxes |
+| Absolute gain for a range | End value − start value − inflows + outflows + return paid across the slice's edge, all after taxes; defined below |
 | TTWROR | Linked sub-period returns, defined below; never annualized |
 | IZF | Annualized internal rate of return, defined below |
 
-**TTWROR.** Parqet splits the range at every activity and chains the sub-period returns. Computed daily, inflows enter at the start of the day, outflows and income at the end:
+**Flows: the slice rule.** A slice is a set of holdings: a security in an account, or an account's cash balance (Verrechnungskonto, Tagesgeld, Festgeld, a pension contract). A booking moves value between holdings, or between a holding and the outside: an untracked account such as the Girokonto, the issuer, the tax office. Every activity, with its matched cash line (see *No double counting*), is such a booking with up to two sides: the **asset side**, the holding that gains or loses units or earns or pays for something, and the **cash side**, the account the money comes from or goes to. For a given slice, one rule decides what a booking is:
+
+- **Both sides inside the slice:** no flow. The booking only moves value within the slice, and whatever it earns or costs is already in the slice's value V.
+- **Neither side inside:** the booking does not concern the slice.
+- **One side inside:** the booking crosses the slice's edge and is a flow, of one of three kinds:
+  - **B, inflow,** at the start of the day: capital entering the slice.
+  - **S, outflow,** at the end of the day: capital leaving the slice.
+  - **R, return paid across the edge,** at the end of the day: what the asset side earned or paid, settled through an account outside the slice. Income counts positive, expenses and taxes negative.
+
+| Booking | Asset side | Cash side | Only the asset side in the slice | Only the cash side in the slice |
+| --- | --- | --- | --- | --- |
+| Buy | Security, + units | Account paying | B: cash paid, incl. fees and taxes | S: cash paid |
+| Sale | Security, − units | Account receiving | S: proceeds after fees and taxes | B: proceeds |
+| Dividend, interest, coupon | Holding that earned it | Account credited | R: + net amount (gross − withheld tax) | B: net amount |
+| Security expense (`INVEXPENSE`) | Security charged | Account paying | R: − expense | S: expense |
+| Delivery in or out, transfer between depots | Security received | Security sent | B: market value on the transfer date | S: market value on the transfer date |
+| Deposit, withdrawal, pension contribution or allowance from an untracked account | Account | Outside | B or S: amount | — |
+| Interest credited to the account that earned it, account fee | The account itself | The same account | — (both sides inside: no flow) | — |
+
+Capital moves at what it is worth when it crosses: a trade at its cash amount, a delivery at units × close × FX on the transfer date. A delivery's stated cost basis stays with its lot for invested capital and realized gains but is never a flow, so a gain earned before a transfer is not return of the receiving slice. A trade's fees and taxes travel with its capital flow, so each is deducted exactly once. A tax reported only as a yearly total has the provider as its asset side (see *Taxes are attributed where they arise*).
+
+Examples. A dividend of 10 with 2.50 withheld tax, paid by a security at Consorsbank to the Consorsbank Verrechnungskonto: for the security alone it is R = +7.50; for Consorsbank or the whole portfolio it is no flow, because the cash balance rises by 7.50 inside the slice; for the Verrechnungskonto alone it is B = 7.50, and the account's own return stays 0 %. Tagesgeld interest of 10 on a balance of 100 is no flow for that account: 110 / 100 − 1 = 10 %. A security worth 100 all day with a security expense of 5, paid from a Verrechnungskonto outside the slice: (100 − 5) / 100 − 1 = −5 %.
+
+For a single security, buys and sales are therefore flows; for a provider or the portfolio, whose slice holds the Verrechnungskonto as well, they are not, and the flows are the transfers to and from untracked accounts. Idle cash in a Verrechnungskonto earns 0 % and lowers TTWROR, as it does in Parqet.
+
+**TTWROR.** Parqet splits the range at every activity and chains the sub-period returns. Computed daily, with V the slice's value at the end of the day and B, S and R as above:
 
 ```latex
-1 + \mathrm{TTWROR} = \prod_{d} \frac{V_d + S_d + D_d - T_d}{V_{d-1} + B_d}
+1 + \mathrm{TTWROR} = \prod_{d} \frac{V_d + S_d + R_d}{V_{d-1} + B_d}
 ```
 
-V is the slice's value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals, after the fees and taxes on them. D is income paid out of the slice that day, before tax, and T the tax withheld on it, so D − T is the net income that left the slice. Income credited to an account inside the slice (interest staying on Tagesgeld, a dividend landing on a Verrechnungskonto that the slice includes) is already in V and is not added as D. An expense charged to the slice but paid from an account outside it (a security expense, `INVEXPENSE`, booked on a Verrechnungskonto the slice does not include) enters D as negative income, so a security worth 100 all day with an expense of 5 returns (100 − 5) / 100 − 1 = −5 %; paid from an account inside the slice, it already lowers V and is not counted again. Absolute gain and IZF treat it the same way. Taxes on sales are deducted once, in S, and are not part of T. Fees are included in B and S, so they also reduce the return. A delivery in or out enters B or S at its market value on the transfer date (units × close × FX), not at its cost basis, so a gain earned before the transfer is not counted as return of the slice; the cost basis stays with the lot for invested capital and realized gains. A transfer between two accounts inside the slice is not a flow.
+A day on which the slice holds nothing, so that V<sub>d−1</sub> + B<sub>d</sub> = 0 and V<sub>d</sub> + S<sub>d</sub> = 0, is a neutral factor of 1: the product runs over invested days only. That covers a gap between a full sale and a later repurchase, and a range that starts before the first inflow. Return arriving on such a day follows the full-sale rule under *Edge cases*. Hand-computed case for a single security:
 
-A day on which the slice holds nothing, so that V<sub>d−1</sub> + B<sub>d</sub> = 0 and V<sub>d</sub> + S<sub>d</sub> = 0, is a neutral factor of 1: the product runs over invested days only. That covers a gap between a full sale and a later repurchase, and a range that starts before the first inflow. Income arriving on such a day follows the full-sale rule under *Lots*. Hand-computed case for a single security:
-
-| Day | Activity | V<sub>d−1</sub> + B<sub>d</sub> | V<sub>d</sub> + S<sub>d</sub> | Factor |
+| Day | Activity | V<sub>d−1</sub> + B<sub>d</sub> | V<sub>d</sub> + S<sub>d</sub> + R<sub>d</sub> | Factor |
 | --- | --- | --- | --- | --- |
-| 1 | Buy for 100 | 0 + 100 | 100 + 0 | 1 |
-| 2 | Close rises 10 % | 100 + 0 | 110 + 0 | 1.1 |
-| 3 | Sell all for 110 | 110 + 0 | 0 + 110 | 1 |
-| 4–9 | Nothing held | 0 + 0 | 0 + 0 | 1 (neutral) |
-| 10 | Buy for 200 | 0 + 200 | 200 + 0 | 1 |
-| 11 | Close rises 10 % | 200 + 0 | 220 + 0 | 1.1 |
+| 1 | Buy for 100 | 0 + 100 | 100 + 0 + 0 | 1 |
+| 2 | Close rises 10 % | 100 + 0 | 110 + 0 + 0 | 1.1 |
+| 3 | Sell all for 110 | 110 + 0 | 0 + 110 + 0 | 1 |
+| 4–9 | Nothing held | 0 + 0 | 0 + 0 + 0 | 1 (neutral) |
+| 10 | Buy for 200 | 0 + 200 | 200 + 0 + 0 | 1 |
+| 11 | Close rises 10 % | 200 + 0 | 220 + 0 + 0 | 1.1 |
 
 TTWROR for days 1–11 is 1.1 × 1.1 − 1 = 21 %.
 
-**Parqet-compatible mode** (`--parqet`). Follows Parqet's FAQ for a portfolio with a cash account: taxes and fees on buys, sales and dividends are not counted as a loss of return, while costs booked directly to the cash account (custody or account fees) still reduce it. Used only for the parallel run.
+**Absolute gain** for a range is V<sub>end</sub> − V<sub>start</sub> − ΣB + ΣS + ΣR.
 
 **IZF.** The rate r that sets the net present value of all flows in the range to zero. The start value counts as an outflow on the first day and the end value as an inflow on the last day:
 
@@ -219,17 +243,17 @@ TTWROR for days 1–11 is 1.1 × 1.1 − 1 = 21 %.
 -V_0 + \sum_i \frac{CF_i}{(1+r)^{t_i/365}} + \frac{V_T}{(1+r)^{T/365}} = 0
 ```
 
-CF is −inflows + outflows + net income paid out of the slice, all after fees and taxes. As for TTWROR, income that stays inside the slice is already in the end value and is not a flow.
+CF on a day is −B + S + R, from the same classification as TTWROR.
+
+**Parqet-compatible mode** (`--parqet`). Follows Parqet's FAQ for a portfolio with a cash account: taxes and fees on buys, sales and dividends are not counted as a loss of return, while costs booked directly to the cash account (custody or account fees) still reduce it. Used only for the parallel run.
 
 **Lots.** Each buy or delivery in opens a lot. Sales close lots first-in first-out within the same account, as German tax law does. Dividends are split across the lots entitled to them, the lots held at the end of the day before the ex-date, in proportion to units; the payment date stays the date of the income flow. When the source gives no ex-date, the lots held on the payment date are used and the split is marked as approximate. A lot reports cost, value, dividends, gain after tax, return since purchase, and the annualized return once it is at least 365 days old. Deposits and contracts have no lots; their since-purchase figure is the IZF from the first inflow.
 
 **Taxes are attributed where they arise.** A tax on a sale or dividend belongs to that asset. Tax reported only as a yearly total (for example the Verlustverrechnung settlement at year end) belongs to the provider, so the provider and portfolio figures are correct even when no single asset can carry it.
 
-**Cash accounts.** Each provider's Verrechnungskonto is an asset valued at its balance, so idle cash earns 0 % and lowers TTWROR, as it does in Parqet. For a single security, buys and sales stay inflows and outflows. For a provider or the portfolio, a buy or sale only moves value between the cash account and the security and is not a flow. There, the flows are transfers into or out of the cash account from untracked accounts such as the Girokonto. Dividends, interest, fees and taxes are booked where the statement shows them, usually on the cash account.
-
 **No double counting.** A trade appears twice: as an investment activity and as its cash line on the Verrechnungskonto (for example `EFFEKTEN` at Consorsbank). Each investment activity is matched to its cash line by provider, amount and a booking date up to 3 business days later; the matched cash line is not counted again. Unmatched lines on either side are listed in the import report.
 
-**Edge cases.** Splits restate history onto the current basis. A dividend paid after a full sale belongs to the lots held before the ex-date; without an ex-date it is added to the position's last held day. A range with no value at the start and no inflows yields no TTWROR (shown as —). Foreign-currency assets include the FX effect, as Parqet does.
+**Edge cases.** Splits restate history onto the current basis. A dividend paid after a full sale belongs to the lots held before the ex-date; without an ex-date it is added to the position's last held day. The same holds for any return arriving on a day with nothing held. A range with no value at the start and no inflows yields no TTWROR (shown as —). Foreign-currency assets include the FX effect, as Parqet does.
 
 ### Views
 
