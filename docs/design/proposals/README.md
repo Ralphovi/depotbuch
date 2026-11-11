@@ -23,3 +23,4 @@ and its [proposal index](https://github.com/getwyrd/wyrd/blob/main/docs/design/p
 
 | # | Title | Status |
 |---|-------|--------|
+| [0001](draft/0001-product-spec.md) | depotbuch product spec (Parqet replacement) | draft |
