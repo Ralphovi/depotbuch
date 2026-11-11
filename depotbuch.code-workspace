@@ -4,16 +4,16 @@
 			"path": "."
 		},
 		{
-			"path": "../autobook"
+			"path": "../autobook/autobook"
 		},
 		{
-			"path": "../ofxstatement-consorsbank"
+			"path": "../autobook/ofxstatement-consorsbank"
 		},
 		{
-			"path": "../ofxstatement-revolut"
+			"path": "../autobook/ofxstatement-revolut"
 		},
 		{
-			"path": "../ofxstatement-scalable"
+			"path": "../autobook/ofxstatement-scalable"
 		}
 	],
 	"settings": {}

@@ -1,9 +1,9 @@
 # Statement fixtures are byte-exact inputs to parsers and to import identity: a Parqet
 # row's ID is a hash of the row, and OFX and PDF statements are parsed as given. Git must
 # never apply text or line-ending normalization to them, or a test silently tests
-# something else.
-*.ofx  binary
-*.qfx  binary
-*.pdf  binary
+# something else. Patterns are case-insensitive, since banks name files .OFX or .CSV too.
+*.[oO][fF][xX]  binary
+*.[qQ][fF][xX]  binary
+*.[pP][dD][fF]  binary
 # CSV stays diffable but is never normalized: CRLF in a bank or Parqet export is kept.
-*.csv  -text
+*.[cC][sS][vV]  -text

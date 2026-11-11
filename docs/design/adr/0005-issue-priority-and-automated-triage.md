@@ -83,6 +83,9 @@ The labels are `priority:P0` to `priority:P3`. Severity and reach set a priority
 ### 3. Overrides
 
 - **`release-gating` means at least P1**, whatever the table says.
+- **A security bug is at least P1** (the `security` flag: a property in the threat model,
+  architecture §14). depotbuch holds a complete picture of its owner's finances, so an
+  attacker-only path to it is not left at P2 or P3 just because normal use does not hit it.
 - **`accessibility` barriers get at least P2.**
 - **Deferred review findings** keep the review's priority, unless the triager can show the
   PR changed the impact.
