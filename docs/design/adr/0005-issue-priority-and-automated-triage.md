@@ -41,8 +41,8 @@ section 4 adds what an automated triager may and may not do.
 
 | Label | Meaning |
 |---|---|
-| `sev:critical` | Data loss or corruption, a security or safety property broken, or a secret leaks |
-| `sev:major` | A safety check bypassed or silently off, a crash, or a core feature broken with no workaround |
+| `sev:critical` | A reported figure is silently wrong (value, invested capital, realized gain, income, taxes, TTWROR, IZF) or differs between the CLI, the API and the front end; an import drops a row without reporting it, imports one twice, or counts a trade and its cash line both; stored activities are lost or corrupted, or a re-import changes them; a float reaches a monetary amount; portfolio data is reachable without a login or leaves the server other than through an export the owner asked for; a statement file or a price response can make the program run code; a secret leaks |
+| `sev:major` | A safety check is off or can be bypassed without a wrong figure yet (oversold-sale rejection, trade-to-cash matching, stale-price flags, import reporting); a report crashes or refuses to run; an import fails on a statement it should read, with no workaround; a core view is broken with no workaround |
 | `sev:minor` | Wrong behaviour with a workaround, or a visible degradation |
 | `sev:trivial` | Cosmetic, wording, docs, or a test-only gap |
 
@@ -55,7 +55,12 @@ section 4 adds what an automated triager may and may not do.
 | `reach:adversarial` | Only triggers when someone sets it up on purpose |
 
 **Area: where the issue lives** (for routing and assignment): the `area:*` labels in
-`.github/triage/labels.json`, following the project's components.
+`.github/triage/labels.json`, one per component: `engine`, `import`, `market-data`,
+`storage`, `cli`, `api`, `frontend`, `deploy`, `ci`, `docs` and `tests`. The triage prompt
+(`.github/triage/prompt.md`) says which code each covers.
+
+A silently wrong figure is rated above a crash: a crash is noticed, a wrong number is not
+(architecture §1.2).
 
 ### 2. Priority from severity and reach
 
