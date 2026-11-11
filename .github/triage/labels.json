@@ -1,8 +1,8 @@
 {
   "_comment": "Labels for issue priority triage (ADR-0005). The apply job creates any that are missing; it never edits or deletes an existing label. Severity, reach, priority and needs-triage are the same in every project. The area labels are this project's own: replace the examples with the project's parts (one per top-level component or source folder is a good start), keep each description under 100 characters, and list the same areas in prompt.md. Owners map an area to the GitHub login assigned when an issue has no assignee; \"*\" is the fallback.",
   "severity": {
-    "sev:critical": {"color": "5c0000", "description": "Data loss or corruption, a security or safety property broken, or a secret leaks"},
-    "sev:major": {"color": "8b2c2c", "description": "A safety check bypassed or silently off, a crash, or a core feature broken with no workaround"},
+    "sev:critical": {"color": "5c0000", "description": "Silently wrong figure, lost or doubled activity, unauthenticated access, a secret leaks"},
+    "sev:major": {"color": "8b2c2c", "description": "Code run via crafted input, data leak, safety check bypassed, crash, core feature broken"},
     "sev:minor": {"color": "c9a0a0", "description": "Wrong behaviour with a workaround, or a visible degradation"},
     "sev:trivial": {"color": "ede0e0", "description": "Cosmetic, wording, docs, or a test-only gap"}
   },
