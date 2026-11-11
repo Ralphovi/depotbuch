@@ -23,8 +23,12 @@ behind the expected difference.
 ## Decision
 
 We will offer a Parqet-compatible mode, `--parqet` on every report command, that follows
-Parqet's FAQ on taxes and fees. It changes only that treatment; activities, valuation and
-the slice rule stay the same. It exists only for the parallel run. The default figures
+Parqet's FAQ on taxes and fees. It changes as little as agreement needs: activities,
+valuation and the slice rule stay the same, with one possible exception. If Parqet values a
+TransferIn at the price given in its row rather than at market value, `--parqet` MUST value
+deliveries the same way (proposal 0001, *Open questions*); **[OPEN]** until that is known.
+Any further difference found in the parallel run is added here by a superseding ADR, not
+silently to the mode. It exists only for the parallel run. The default figures
 stay after taxes and are accepted against hand-computed cases instead, since Parqet has no
 equivalent.
 
