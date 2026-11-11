@@ -14,8 +14,8 @@ Taken from the product spec of 9 November 2026, reordered to follow the proposal
 Corrections since, all under *Calculations* and from review: income that stays inside the
 selected slice and taxes on sales are each counted once (the spec counted both twice);
 deliveries enter performance at market value, not cost basis; days with nothing invested are
-neutral in TTWROR; dividends go to the lots held before the ex-date, not on the payment
-date.
+neutral in TTWROR; expenses paid from outside the slice reduce the return; dividends go to
+the lots held before the ex-date, not on the payment date.
 
 ## Motivation
 
@@ -196,7 +196,7 @@ Every figure is computed in EUR, after taxes, for a time range (YTD, 1 year, sin
 1 + \mathrm{TTWROR} = \prod_{d} \frac{V_d + S_d + D_d - T_d}{V_{d-1} + B_d}
 ```
 
-V is the slice's value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals, after the fees and taxes on them. D is income paid out of the slice that day, before tax, and T the tax withheld on it, so D − T is the net income that left the slice. Income credited to an account inside the slice (interest staying on Tagesgeld, a dividend landing on a Verrechnungskonto that the slice includes) is already in V and is not added as D. Taxes on sales are deducted once, in S, and are not part of T. Fees are included in B and S, so they also reduce the return. A delivery in or out enters B or S at its market value on the transfer date (units × close × FX), not at its cost basis, so a gain earned before the transfer is not counted as return of the slice; the cost basis stays with the lot for invested capital and realized gains. A transfer between two accounts inside the slice is not a flow.
+V is the slice's value at end of day. B is inflows: buys, deliveries in, deposits, pension contributions. S is outflows: sales, deliveries out, withdrawals, after the fees and taxes on them. D is income paid out of the slice that day, before tax, and T the tax withheld on it, so D − T is the net income that left the slice. Income credited to an account inside the slice (interest staying on Tagesgeld, a dividend landing on a Verrechnungskonto that the slice includes) is already in V and is not added as D. An expense charged to the slice but paid from an account outside it (a security expense, `INVEXPENSE`, booked on a Verrechnungskonto the slice does not include) enters D as negative income, so a security worth 100 all day with an expense of 5 returns (100 − 5) / 100 − 1 = −5 %; paid from an account inside the slice, it already lowers V and is not counted again. Absolute gain and IZF treat it the same way. Taxes on sales are deducted once, in S, and are not part of T. Fees are included in B and S, so they also reduce the return. A delivery in or out enters B or S at its market value on the transfer date (units × close × FX), not at its cost basis, so a gain earned before the transfer is not counted as return of the slice; the cost basis stays with the lot for invested capital and realized gains. A transfer between two accounts inside the slice is not a flow.
 
 A day on which the slice holds nothing, so that V<sub>d−1</sub> + B<sub>d</sub> = 0 and V<sub>d</sub> + S<sub>d</sub> = 0, is a neutral factor of 1: the product runs over invested days only. That covers a gap between a full sale and a later repurchase, and a range that starts before the first inflow. Income arriving on such a day follows the full-sale rule under *Lots*. Hand-computed case for a single security:
 
