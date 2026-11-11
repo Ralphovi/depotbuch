@@ -166,7 +166,7 @@ engine milestone.
 
 ## 8.7 Imports: identity, reporting, nothing silent
 
-- An activity's identity is account plus `FITID`; Parqet rows use a hash of the row.
+- An activity's identity is account plus `FITID`; Parqet rows use a hash of the row plus its occurrence number among identical rows in the file.
 - The security key is the ISIN; tickers and WKNs are mapped once and remembered.
 - The account is `BROKERID:ACCTID` from the statement, overridable per import.
 - Each import reports added, skipped and rejected rows, and unmatched cash lines. Nothing is
