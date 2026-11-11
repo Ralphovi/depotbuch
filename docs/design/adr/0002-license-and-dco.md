@@ -31,8 +31,9 @@ GPL-3.0-or-later as well.
 
 depotbuch is licensed under the **GNU General Public License v3.0 or later** (`LICENSE`).
 The whole repository carries it; there is no split between a permissive engine and a GPL
-importer. Every dependency MUST be compatible with GPL v3: Apache-2.0, MIT and BSD are;
-GPL-2.0-only is not.
+importer. Every dependency MUST be compatible with GPL v3: Apache-2.0, MIT, BSD-2-Clause and
+BSD-3-Clause are; GPL-2.0-only and the original 4-clause BSD license (its advertising
+clause) are not.
 
 Contribution provenance is tracked with the **Developer Certificate of Origin** (DCO, the
 `DCO` file), not a Contributor License Agreement (CLA). Each commit carries a
@@ -50,8 +51,8 @@ contributions later, is a power this project chooses not to hold.
 - Every contributor keeps their copyright, so the project cannot later be relicensed
   without their agreement.
 - Third-party material shipped with the project keeps its own license.
-- Apache-2.0 dependencies such as yfinance stay available; a GPL-2.0-only dependency does
-  not. A new dependency is checked against this before it is added.
+- Apache-2.0 dependencies such as yfinance stay available; a GPL-2.0-only or 4-clause BSD
+  dependency does not. A new dependency is checked against this before it is added.
 - Autobook can take over the engine without a license change, since both are
   GPL-3.0-or-later.
 - Anyone distributing a modified depotbuch must ship its source under the same terms. For a
