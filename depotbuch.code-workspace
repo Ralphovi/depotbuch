@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../autobook/autobook"
+		},
+		{
+			"path": "../autobook/ofxstatement-consorsbank"
+		},
+		{
+			"path": "../autobook/ofxstatement-revolut"
+		},
+		{
+			"path": "../autobook/ofxstatement-scalable"
+		}
+	],
+	"settings": {}
+}

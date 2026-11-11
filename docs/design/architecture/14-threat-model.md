@@ -25,6 +25,17 @@ tags:
 | **The login** (owner's credentials and sessions) | Full read access to the portfolio and the ability to change activities. **High**. |
 | **Availability** | One user, no time pressure; statements and the database can be re-imported or restored. **Low**. |
 
+The ratings above weigh each asset. A finding is rated on its own scale, the one in the
+reviewer summary (`.oss-scanner/threat_model.md`, *How we rate severity*) and in issue
+triage (ADR-0005, where Critical is `sev:critical` and High is `sev:major`):
+
+| Finding | Rating |
+|---------|--------|
+| Silently wrong figures that look right; portfolio data readable, or code run, without authentication; a secret leaks (the Django secret key, the owner's credentials, a provider key) | Critical |
+| Code execution or file access through a statement file or a price or FX response; portfolio data read with a stolen or forged session, or leaving the server other than through an export the owner asked for | High |
+| Denial of service through a crafted input; CSV injection in an export | Medium |
+| Needs the owner's own credentials or a deliberate misconfiguration | Low |
+
 ## 14.2 Trust boundaries
 
 1. **Network → web front end and API.** Anything reaching the homelab's HTTPS endpoint. Only

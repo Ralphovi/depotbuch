@@ -83,12 +83,16 @@ Django development server against a SQLite database and drive the inputs with
 
 ## How we rate severity
 
-- **Critical:** silently wrong figures that look right, or remote access to portfolio data
-  or code execution without authentication.
+- **Critical:** silently wrong figures that look right; remote access to portfolio data
+  or code execution without authentication; a leaked secret (the Django secret key, the
+  owner's credentials, a provider key).
 - **High:** code execution or file access through a statement file or provider response;
-  reading the portfolio with a stolen or forged session.
+  reading the portfolio with a stolen or forged session, or portfolio data leaving the
+  server other than through an export the owner asked for.
 - **Medium:** denial of service through a crafted input; CSV injection in an export.
 - **Low:** issues needing the owner's own credentials or a deliberate misconfiguration.
+
+The same scale is in architecture §14.1 and in issue triage (ADR-0005).
 
 A clean reproducer matters more than a severity label. The best form is a failing test in
 the style of the existing ones.
