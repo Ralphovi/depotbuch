@@ -15,7 +15,7 @@ An activity (buy, sell, dividend, interest, transfer, fee, split, deposit, withd
 step 2 contribution and allowance) is the only fact depotbuch stores about a position.
 Holdings, lots, values and every report are recomputed from activities plus market data.
 Re-imports, corrections and method changes (FIFO to average, say) therefore need no data
-migration. **[OPEN] to record as ADR.**
+migration (ADR-0006, Proposed).
 
 One portfolio holds all providers; a provider holds accounts (a depot, a Verrechnungskonto, a
 Tagesgeld account, each Festgeld deposit); an account holds activities, and each activity
@@ -118,7 +118,7 @@ when the same ISIN sits in two depots, and so the parallel run.
   yearly total belongs to the provider, so provider and portfolio figures stay right.
 - **Parqet-compatible mode** (`--parqet`) follows Parqet's FAQ: taxes and fees on buys, sales
   and dividends do not reduce the return, while costs booked directly to the cash account
-  still do. It exists only for the parallel run. **[OPEN] to record as ADR.**
+  still do. It exists only for the parallel run (ADR-0012, Proposed).
 
 The formulas are in proposal 0001, *Calculations*.
 
