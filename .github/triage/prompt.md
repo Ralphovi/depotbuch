@@ -36,9 +36,9 @@ Pick one, or two when the issue clearly spans both. Pick none when no area fits.
 - `import`: importers in `src/depotbuch/adapters/`: ofxstatement plugins, OFX files, the Parqet CSV, manual entry, account configuration.
 - `market-data`: price, split and FX providers: yfinance, ECB, manual CSV, later IBKR.
 - `storage`: Django models, migrations and admin in `src/depotbuch/web/portfolio/`.
-- `cli`: the `depot` command and its report views.
+- `cli`: the `depot` command, its report views and the HTML report from `depot report`.
 - `api`: the Django Ninja API, login and settings in `src/depotbuch/web/`.
-- `frontend`: the TypeScript front end and the HTML report.
+- `frontend`: the TypeScript front end.
 - `deploy`: the container, TLS and the homelab deployment.
 - `ci`: workflows, the nox gate, build and release tooling.
 - `docs`: ADRs, proposals, architecture, the threat model and other documentation.
