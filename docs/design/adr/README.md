@@ -59,7 +59,7 @@ frontmatter, and both sides of every supersession agree. Run
 | [0005](0005-issue-priority-and-automated-triage.md) | Issue priority: severity and reach set P0–P3, applied by hand or by a bot | Proposed |
 | [0006](0006-activities-as-the-only-stored-fact.md) | Activities are the only stored fact about a position | Proposed |
 | [0007](0007-engine-without-a-framework.md) | The calculation engine has no framework dependency | Proposed |
-| [0008](0008-ofxstatement-as-the-statement-input.md) | All statement data enters through ofxstatement | Proposed |
+| [0008](0008-ofxstatement-as-the-statement-input.md) | Statements enter as OFX, through ofxstatement plugins | Proposed |
 | [0009](0009-price-data-yfinance-then-ibkr.md) | Price data: yfinance now, Interactive Brokers later, behind one provider interface | Proposed |
 | [0010](0010-django-ninja-and-a-typescript-front-end.md) | Django with Django Ninja, a TypeScript front end, and the CLI as management commands | Proposed |
 | [0011](0011-django-5-2-lts-for-python-3-11.md) | Django 5.2 LTS, to keep Python 3.11 | Proposed |

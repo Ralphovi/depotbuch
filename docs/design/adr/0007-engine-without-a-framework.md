@@ -25,7 +25,8 @@ Hypothesis property tests, which are simplest without a database or a web framew
 
 We will keep the engine (`src/depotbuch/engine/`) in plain Python: `decimal.Decimal` for
 money and quantities, pydantic types for its inputs and outputs. It takes activities,
-prices and FX rates and returns results. It MUST NOT import Django, Django Ninja or any
+prices, FX rates, account configuration (asset type, Festgeld principal, rate and term)
+and contract valuations, the inputs ADR-0006 stores, and returns results. It MUST NOT import Django, Django Ninja or any
 other web or ORM framework, and neither MAY the adapters (`src/depotbuch/adapters/`).
 
 Django models store only what the engine reads; the web layer and the CLI convert between

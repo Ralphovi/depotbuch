@@ -7,7 +7,7 @@ tags:
   - import
   - adapters
 ---
-# 0008. All statement data enters through ofxstatement
+# 0008. Statements enter as OFX, through ofxstatement plugins
 
 ## Context
 
@@ -22,17 +22,21 @@ plugins*). Fetching statements automatically (broker APIs, autosync) is a non-go
 
 ## Decision
 
-We will take all broker and bank data through ofxstatement. `depot import -t <section>
-<file>` loads the plugin from the user's ofxstatement configuration in-process, renders the
-statement with ofxstatement's own `OfxWriter`, and parses that OFX. OFX files and the Parqet
-CSV export are the other import paths; the CSV is a one-time migration of the existing
-history. Manual entry (`depot add`) covers anything without a statement.
+We will read every bank and broker statement as OFX, through one OFX parser in the adapters.
+A statement in any other format (PDF, a bank's CSV) MUST come through an ofxstatement
+plugin: `depot import -t <section> <file>` loads the plugin from the user's ofxstatement
+configuration in-process, renders the statement with ofxstatement's own `OfxWriter`, and
+parses that OFX. A statement the bank already delivers as OFX is read directly, since it is
+the format the plugins produce. The Parqet CSV export is the one other import path, a
+one-time migration of the existing history. Manual entry (`depot add`) covers anything
+without a statement.
 
 Depot statements MUST fill `statement.invest_lines` (ofxstatement 0.9 or later), with the
 ISIN as `security_id` and the settlement currency as `statement.currency`. The missing
 investment parsers are written in the plugin repositories, not in depotbuch.
 
-We reject depotbuch-specific statement parsers and broker APIs.
+We reject depotbuch-specific parsers for a bank's own formats (its PDFs and CSVs), which
+would duplicate the plugins, and broker APIs.
 
 ## Consequences
 
