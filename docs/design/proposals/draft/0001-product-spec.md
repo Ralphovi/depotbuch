@@ -119,7 +119,7 @@ Whether a bank line is a transfer between own accounts or an external flow is de
 
 **Rules**
 
-- An activity's identity is account plus `FITID`. Re-importing the same file adds nothing. Parqet rows have no ID, so the ID is a hash of the row.
+- An activity's identity is account plus `FITID`. Re-importing the same file adds nothing. Parqet rows have no ID, so the ID is a hash of the row plus its occurrence number: the first of several identical rows in the file is occurrence 1, the next occurrence 2. Two identical buys on the same day stay two activities, re-importing the same export adds nothing, and a later export of the same history adds only the rows that are new, including a further identical one. The import report lists rows that share a hash, so a duplicate that should not be there can be checked against Parqet.
 - The security key is the ISIN. A plugin that emits a ticker or WKN instead is mapped to an ISIN once and remembered.
 - The account is `BROKERID:ACCTID` from the statement and can be overridden per import.
 - Each import reports added, skipped and rejected rows. Nothing is dropped silently.
