@@ -65,6 +65,7 @@ them. A difference beyond tolerance must be explained by an open question, or it
 | Position | An asset across all accounts. |
 | Provider | A bank or broker: Consorsbank, Revolut, Scalable, the deposit banks. |
 | Riester, Rürup | German subsidized pension contracts (step 2). |
+| Slice | The set of holdings a figure covers: the portfolio, a provider, an account, an asset class or one asset. A booking is a flow for a slice only if it crosses the slice's edge (§8.4). |
 | Tagesgeld | Instant-access savings account; valued at its balance. |
 | TTWROR | True time-weighted rate of return: chained daily sub-period returns, never annualized. |
 | Verlustverrechnung | Annual loss offsetting by the bank; its tax effect is attributed to the provider. |

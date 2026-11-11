@@ -49,7 +49,7 @@ depotbuch.
 | Statement files (Consorsbank, Scalable, Revolut, deposit banks) | In, by `depot import` | PDF, CSV, OFX (XML or SGML) | Untrusted content: parsed defensively, every row reported as added, skipped or rejected. |
 | ofxstatement plugins | In-process call | Python `Statement` objects, rendered with `OfxWriter` and re-parsed as OFX | The plugin code is trusted (installed by the owner from known repositories); its output is validated like a file. |
 | Plugin contract | Plugins → depotbuch | `statement.invest_lines` (ofxstatement 0.9+), ISIN in `security_id`, settlement currency in `statement.currency`; deposits as bank `statement.lines` | Untrusted data. None of the existing plugins meets the contract yet (see below). |
-| Parqet CSV export | In, once | Semicolon-separated, header-driven; Buy, Sell, Dividend, Interest, TransferIn, TransferOut | Untrusted content. Rows carry no ID; the activity ID is a hash of the row. |
+| Parqet CSV export | In, once | Semicolon-separated, header-driven; Buy, Sell, Dividend, Interest, TransferIn, TransferOut | Untrusted content. Rows carry no ID; the activity ID is a hash of the row plus its occurrence number among identical rows in the file. |
 | Price provider: yfinance (Yahoo Finance) | Out, by `depot update` | Daily closes adjusted for splits but not dividends; split events | Untrusted data from a third party. Personal-use terms. |
 | Price provider: Interactive Brokers (later) | Out | TWS API via TWS or IB Gateway | Licensed; untrusted data. |
 | Manual price CSV | In | CSV | Owner's own data. |
