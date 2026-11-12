@@ -159,7 +159,7 @@ Securities are valued through yfinance, the one free source that covers German l
 
 | Asset type | Value on a day | Source |
 | --- | --- | --- |
-| Security | Units × close × FX | Price provider; ECB for FX |
+| Security | Units × close ÷ ECB rate (foreign currency per EUR) | Price provider; ECB for FX |
 | Tagesgeld | Account balance | Bank statements |
 | Verrechnungskonto (broker cash) | Account balance | Bank statements; the Consorsbank and Scalable plugins read them today |
 | Festgeld | Principal + interest accrued daily at the contract rate | Contract terms, then the maturity statement |
@@ -210,7 +210,7 @@ Every figure is computed in EUR, after taxes, for a time range (YTD, 1 year, sin
 | Deposit, withdrawal, pension contribution or allowance from an untracked account | Account | Outside | B or S: amount | — |
 | Interest credited to the account that earned it, account fee | The account itself | The same account | — (both sides inside: no flow) | — |
 
-Capital moves at what it is worth when it crosses: a trade at its cash amount, a delivery at units × close × FX on the transfer date. A delivery's stated cost basis stays with its lot for invested capital and realized gains but is never a flow, so a gain earned before a transfer is not return of the receiving slice. A trade's fees and taxes travel with its capital flow, so each is deducted exactly once. A tax reported only as a yearly total has the provider as its asset side (see *Taxes are attributed where they arise*).
+Capital moves at what it is worth when it crosses: a trade at its cash amount, a delivery at units × close in EUR (divided by the ECB rate for a foreign currency) on the transfer date. A delivery's stated cost basis stays with its lot for invested capital and realized gains but is never a flow, so a gain earned before a transfer is not return of the receiving slice. A trade's fees and taxes travel with its capital flow, so each is deducted exactly once. A tax reported only as a yearly total has the provider as its asset side (see *Taxes are attributed where they arise*).
 
 Examples. A dividend of 10 with 2.50 withheld tax, paid by a security at Consorsbank to the Consorsbank Verrechnungskonto: for the security alone it is R = +7.50; for Consorsbank or the whole portfolio it is no flow, because the cash balance rises by 7.50 inside the slice; for the Verrechnungskonto alone it is B = 7.50, and the account's own return stays 0 %. Tagesgeld interest of 10 on a balance of 100 is no flow for that account: 110 / 100 − 1 = 10 %. A security worth 100 all day with a security expense of 5, paid from a Verrechnungskonto outside the slice: (100 − 5) / 100 − 1 = −5 %.
 

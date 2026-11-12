@@ -83,10 +83,13 @@ goal 1, and the engine is pure, so most testing happens at the engine with no da
 |------|------|--------|
 | Hand-computed cases | One case per calculation rule (valuation, Festgeld accrual, FIFO lots, dividend split across lots, splits, TTWROR, IZF, tax attribution, cash accounts, matching), each in default and `--parqet` mode. | M1 |
 | Property tests (Hypothesis) | Invariants: lots sum to holdings; no cash line counted twice; TTWROR independent of how a range is split; re-import adds nothing. | M1 |
+| Private reconciliation | The engine run on a real broker history, kept outside the repository, against the provider's own holdings statements, prices, distribution notices and sale gains. Local only, in its own session, `nox -s reconcile -- <corpus path>`, which neither the gate nor CI runs; it must pass before an engine PR is merged and for M1 to close, and runs only on trusted code (proposal 0002). | M1 |
 | Parser tests | Synthetic statements, OFX and Parqet CSV fixtures: mapping table, identity, rejected rows, per-row report. Never real statements. | M2 |
 | Integration tests | Django models, management commands and API endpoints against SQLite; CLI and API return the same figures. | M4 |
 | Performance check | Synthetic 10-year, 100-asset portfolio under 2 s. | M4 |
 | Front-end tests | **[OPEN]** Chosen with the front-end design proposal. | M6 |
 | Parallel run | One month against Parqet within the §10 tolerances. | M7 |
 
-All tiers up to integration run in `nox -s gate`; CI runs them on Python 3.11 to 3.14.
+All tiers up to integration run in `nox -s gate`; CI runs them on Python 3.11 to 3.14. The
+private reconciliation is not part of the gate: it runs only when invoked explicitly with the
+corpus path, on the developer's machine.

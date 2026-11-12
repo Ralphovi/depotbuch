@@ -53,6 +53,11 @@ PR number from the payload and posts a fixed comment. A change that adds an
 - No input file or provider response can execute code, read files or exhaust the server
   (for example through XML entity expansion in OFX).
 - The engine and adapters never import Django.
+- Real statement data never enters the repository, CI or a test log. The private test
+  corpus (proposal 0002) lives outside the repository and is passed only to its own
+  session, `nox -s reconcile -- <path>`, never to the gate or CI. The runner refuses a path
+  inside any clone or worktree of this repository or any Git worktree with a remote, runs only on trusted code, and prints nothing taken
+  from a case file.
 
 ## Components that matter most
 

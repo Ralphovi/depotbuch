@@ -21,7 +21,7 @@ tags:
 | Asset | What losing it means |
 |-------|----------------------|
 | **Integrity of the figures** (activities, market data, derived results) | Wrong values, gains, taxes or returns that look right. The owner makes decisions on them, and the parallel run would pass or fail for the wrong reason. Silent corruption is **Critical** (the headline promise, §1.2). |
-| **Confidentiality of the portfolio** (holdings, transactions, account numbers, balances, pension contracts, imported statement files, the HTML report) | A complete picture of the owner's wealth and banks: useful for fraud, phishing and social engineering. **High**. |
+| **Confidentiality of the portfolio** (holdings, transactions, account numbers, balances, pension contracts, imported statement files, the HTML report, and the private test corpus of real statements on the developer's machine, proposal 0002) | A complete picture of the owner's wealth and banks: useful for fraud, phishing and social engineering. **High**. |
 | **The login** (owner's credentials and sessions) | Full read access to the portfolio and the ability to change activities. **High**. |
 | **Availability** | One user, no time pressure; statements and the database can be re-imported or restored. **Low**. |
 
@@ -130,6 +130,7 @@ formula characters.
 |--------|------------|------|
 | Silent duplicate activities | Identity = account + `FITID` | Gap until M2 |
 | Cash line counted twice | Trade-to-cash matching | Gap until M1 (Hypothesis invariant) |
+| Real statement data reaches the repository or a log | The private test corpus lives outside the repository and is passed only to its own session, `nox -s reconcile -- <path>`, never to the gate or CI, and only on trusted code (the owner's, an agent's in the owner's session that can already read the corpus, or code the owner has reviewed); the runner refuses a corpus or report path inside any clone or worktree of this repository or any Git worktree with a remote, and a symlinked report path, prints only synthetic case file names, field names and error kinds, and writes values to a report inside the corpus directory (proposal 0002) | Gap until M1 (runner test) |
 | Engine reaches Django or the network | Lint rule banning `django` and `ninja` in `engine/` and `adapters/`; a test that imports both packages without loading either framework. Network access is not checked yet. | Gate (ruff, `tests/test_boundaries.py`), from M0 |
 | Unauthenticated API access | Staff login on the schema, docs and admin; only `/api/health` is open | `tests/web/test_api.py`, from M0; every data endpoint adds its own case from M6 |
 | OFX entity expansion | Hardened parser | Gap until M5 |
