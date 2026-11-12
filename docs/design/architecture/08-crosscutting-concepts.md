@@ -158,11 +158,12 @@ tracks? Both tools must include the same cash, since idle cash dilutes TTWROR.
 
 ## 8.6 Money and numbers
 
-Amounts are `decimal.Decimal` from parsing to output; binary floats never hold money. Each
-amount carries its currency until it is converted to EUR. Rounding to the cent happens only
-for display and for comparison with Parqet; intermediate results keep full precision.
-**[OPEN]** Rounding mode and the precision of stored prices and FX rates, decided with the
-engine milestone.
+Amounts, unit counts, prices and FX rates are `decimal.Decimal` from parsing to output; a
+binary float is rejected at every boundary, not converted (`depotbuch.engine.money`). Each
+amount carries its currency until it is converted to EUR. Intermediate results keep full
+precision. An amount is rounded to the cent, half up, only where a provider rounds it (a
+booked cash amount, a reported tax) and for display and comparison; unit counts, prices and
+FX rates keep the digits the source gives (ADR-0013, Proposed).
 
 ## 8.7 Imports: identity, reporting, nothing silent
 
