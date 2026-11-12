@@ -107,14 +107,19 @@ invested capital; a sale's realized gain is its cash received after fees and tax
 cost of the units it closes. A sale larger than the account's holding is rejected. A
 delivery in keeps its stated cost basis on the lot, while performance counts it at market
 value on the transfer date (§8.4); a delivery out closes lots without realizing a gain.
-Bonds are lots like any other, with the nominal amount as units (ADR-0014, Proposed). Dividends are split
-across the lots held at the end of the day before the ex-date, in proportion to units; the
-payment date stays the date of the income flow. Without an ex-date, the lots held on the
-payment date are used and the split is marked as approximate. **[OPEN]** Which sources give
-the ex-date: OFX `INCOME` and the Parqet CSV do not. Splits restate history onto the current
-basis: a split multiplies the units of the account's open lots by its ratio, keeps their
-cost, and takes effect at the start of its day. A dividend paid after a full sale belongs to the lots held before the ex-date;
-without an ex-date it is added to the position's last held day. Average and LIFO are later
+Bonds are lots like any other, with the nominal amount as units (ADR-0014, Proposed). Splits
+restate history onto the current basis: a split multiplies the units of the account's open
+lots by its ratio, keeps their cost, and takes effect at the start of its day.
+
+Dividends and coupons are split across the lots held at the end of the day before the
+ex-date, in proportion to units, with the net amount and the withheld tax each split in
+cents that add up (`depotbuch.engine.income`); the payment date stays the date of the
+income. A position that held nothing on that day is not entitled, and the dividend is
+rejected. Without an ex-date, the lots held at the end of the payment date are used, or,
+after a full sale, those of the position's last held day, and the split is marked
+approximate. Interest on a cash or deposit account has no lots. Consorsbank's distribution
+notices print a *Schlusstag*, the last day carrying the entitlement, so their ex-date is
+the day after it. **[OPEN]** OFX `INCOME` and the Parqet CSV give no ex-date. Average and LIFO are later
 options; because lots are derived, adding them needs no migration.
 
 **[OPEN]** Does Parqet apply FIFO per sub-depot or per portfolio? This changes realized gains
@@ -142,8 +147,10 @@ when the same ISIN sits in two depots, and so the parallel run.
   with the start value as an outflow on the first day and the end value as an inflow on the
   last.
 - **Taxes are deducted by default** (withholding, Abgeltungsteuer, Soli, church tax; refunds
-  negative). A tax on a sale or dividend belongs to that asset; a tax reported only as a
-  yearly total belongs to the provider, so provider and portfolio figures stay right.
+  negative). A tax on a trade, a dividend or interest, or on a Vorabpauschale (ADR-0016,
+  Proposed), belongs to that asset; a tax booking without an asset, such as a yearly
+  settlement, belongs to its account and so to its provider, so provider and portfolio
+  figures stay right.
 - **Parqet-compatible mode** (`--parqet`) follows Parqet's FAQ: taxes and fees on buys, sales
   and dividends do not reduce the return, while costs booked directly to the cash account
   still do. It exists only for the parallel run (ADR-0012, Proposed).

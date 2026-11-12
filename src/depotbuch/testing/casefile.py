@@ -35,9 +35,11 @@ day_count = "act/365"     # or act/360, 30E/360
 
 [[expect]]
 as_of = 2024-06-28
-since = 2024-01-01        # for range metrics (realized_gain): after this day, up to as_of
+since = 2024-01-01        # for range metrics (realized gain, income, taxes): after this
+                          # day, up to as_of
 slice = { asset = "X1" }
-units = "3"               # one key per metric: units, value, invested_capital, realized_gain
+units = "3"               # one key per metric: units, value, invested_capital,
+                          # realized_gain, income, withheld_tax, entitled_units, taxes
 parqet = { units = "3" }  # only where --parqet differs
 ```
 
@@ -63,6 +65,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.holdings import units_held
+from depotbuch.engine.income import IncomeShare, income, taxes
 from depotbuch.engine.lots import LotBook, Realization, build_lots
 from depotbuch.engine.model import (
     Account,
@@ -76,6 +79,7 @@ from depotbuch.engine.money import (
     Currency,
     Dec,
     book_exact,
+    exact_sum,
     is_rate,
     multiply_units,
     round_cent,
@@ -91,6 +95,8 @@ class Slice(BaseModel):
     asset: str | None = None
     account: str | None = None
     provider: str | None = None
+    lot: date | None = None
+    """For income metrics: only the lot opened on this day."""
 
 
 class AssetSpec(BaseModel):
@@ -205,7 +211,12 @@ class Case(BaseModel):
         return {a.id: a for a in self.asset_list()}
 
     def account_map(self) -> dict[str, Account]:
-        return {i: Account(id=i, **spec.model_dump()) for i, spec in self.accounts.items()}
+        """Every account used or declared; an undeclared one is at the default provider."""
+        used = {a.account for a in self.activities}
+        return {
+            i: Account(id=i, **self.accounts.get(i, AccountSpec()).model_dump())
+            for i in sorted(used | set(self.accounts))
+        }
 
 
 def load_case(path: Path) -> Case:
@@ -297,6 +308,57 @@ def _realized_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
         raise NotImplementedError("provider slices arrive with the slice rule (#26)")
     return _book(case, expect).realized_gain(
         asset=expect.slice.asset, account=expect.slice.account, since=expect.since
+    )
+
+
+def _income_shares(case: Case, expect: Expect) -> list[IncomeShare]:
+    sl = expect.slice
+    if sl.provider is not None:
+        raise NotImplementedError("provider slices arrive with the slice rule (#26)")
+    shares = income(
+        case.activities,
+        expect.as_of,
+        case.fx_rates(),
+        assets=case.asset_map(),
+        accounts=case.account_map(),
+        asset=sl.asset,
+        account=sl.account,
+        since=expect.since,
+    )
+    return [s for s in shares if sl.lot is None or s.lot_opened == sl.lot]
+
+
+def _income(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    """Net income: credited, after withheld tax."""
+    del parqet  # income is the same in both modes
+    return exact_sum(s.net for s in _income_shares(case, expect))
+
+
+def _withheld_tax(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    del parqet
+    return exact_sum(s.taxes for s in _income_shares(case, expect))
+
+
+def _entitled_units(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    """The units the slice's income was paid on: its entitled lots' units."""
+    del parqet
+    return exact_sum(s.units for s in _income_shares(case, expect))
+
+
+def _taxes(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    del parqet  # which taxes --parqet counts as a loss of return is a flow question (#29)
+    sl = expect.slice
+    if sl.lot is not None:
+        raise ValueError("taxes aren't split by lot")
+    return taxes(
+        case.activities,
+        expect.as_of,
+        case.fx_rates(),
+        accounts=case.account_map(),
+        asset=sl.asset,
+        account=sl.account,
+        provider=sl.provider,
+        since=expect.since,
     )
 
 
@@ -439,8 +501,22 @@ METRICS: dict[str, Metric] = {
     "realized_gain": _realized_gain,
     "taxable_gain": _taxable_gain,
     "value": _value,
+    "income": _income,
+    "withheld_tax": _withheld_tax,
+    "entitled_units": _entitled_units,
+    "taxes": _taxes,
 }
-MONEY = frozenset({"invested_capital", "realized_gain", "taxable_gain", "value"})
+MONEY = frozenset(
+    {
+        "invested_capital",
+        "realized_gain",
+        "taxable_gain",
+        "value",
+        "income",
+        "withheld_tax",
+        "taxes",
+    }
+)
 """Metrics compared to the cent."""
 PRIVATE_ONLY = frozenset({"taxable_gain"})
 """Metrics for the private corpus, never used in a public case."""

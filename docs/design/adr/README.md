@@ -67,6 +67,7 @@ frontmatter, and both sides of every supersession agree. Run
 | [0013](0013-booked-amounts-in-cents.md) | Booked amounts in cents, analytical figures at full precision | Proposed |
 | [0014](0014-bonds-as-nominal-units.md) | Bonds: the nominal amount as units, accrued interest in the cost | Proposed |
 | [0015](0015-festgeld-simple-interest-under-its-terms.md) | Festgeld: simple interest accrued daily under the account's terms | Proposed |
+| [0016](0016-vorabpauschale-as-an-activity.md) | The Vorabpauschale is an activity, not income | Proposed |
 
 ## ADR candidates
 

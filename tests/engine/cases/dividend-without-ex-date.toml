@@ -1,0 +1,39 @@
+name = "dividend-without-ex-date"
+rule = "proposal 0001, Lots: without an ex-date, the lots held on the payment date, marked approximate"
+working = """
+Lot 1: 2 units bought 2024-01-02; lot 2: 1 unit bought 2024-05-02. A dividend of
+1.00 net, no tax, is paid on 2024-05-10 and its source gives no ex-date: the lots held then,
+2 : 1 -> 0.67 and 0.33 (cumulative booking: 2/3 of 1.00 = 0.67, the rest 0.33).
+"""
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+asset = "X1"
+units = "2"
+cash = "-20.00"
+
+[[activities]]
+date = 2024-05-02
+type = "buy"
+asset = "X1"
+units = "1"
+cash = "-10.00"
+
+[[activities]]
+date = 2024-05-10
+type = "dividend"
+asset = "X1"
+cash = "1.00"
+
+[[expect]]
+as_of = 2024-05-10
+slice = { asset = "X1", lot = 2024-01-02 }
+income = "0.67"
+entitled_units = "2"
+
+[[expect]]
+as_of = 2024-05-10
+slice = { asset = "X1", lot = 2024-05-02 }
+income = "0.33"
+entitled_units = "1"

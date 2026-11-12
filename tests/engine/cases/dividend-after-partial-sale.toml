@@ -1,0 +1,73 @@
+name = "dividend-after-partial-sale"
+rule = "proposal 0001, Lots: a dividend goes to the lots held at the end of the day before the ex-date, pro rata to units"
+working = """
+Lot 1: 10 units bought 2024-01-02. Lot 2: 10 units bought 2024-02-01. Sold 5 on 2024-03-01,
+from lot 1 (FIFO), leaving 5 + 10 = 15 entitled units on the day before the ex-date
+2024-04-15. 3 more sold on 2024-04-15 (the ex-date) don't change that.
+Dividend paid 2024-04-30: 12.00 gross, 3.00 withheld, 9.00 net.
+Lot 1: 5/15 -> net 3.00, tax 1.00. Lot 2: 10/15 -> net 6.00, tax 2.00.
+"""
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+asset = "X1"
+units = "10"
+cash = "-100.00"
+
+[[activities]]
+date = 2024-02-01
+type = "buy"
+asset = "X1"
+units = "10"
+cash = "-110.00"
+
+[[activities]]
+date = 2024-03-01
+type = "sell"
+asset = "X1"
+units = "-5"
+cash = "60.00"
+
+[[activities]]
+date = 2024-04-15
+type = "sell"
+asset = "X1"
+units = "-3"
+cash = "36.00"
+
+[[activities]]
+date = 2024-04-30
+type = "dividend"
+asset = "X1"
+cash = "9.00"
+taxes = "3.00"
+ex_date = 2024-04-15
+
+[[expect]]
+as_of = 2024-04-30
+since = 2024-04-29
+slice = { asset = "X1" }
+income = "9.00"
+withheld_tax = "3.00"
+entitled_units = "15"
+taxes = "3.00"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1", lot = 2024-01-02 }
+income = "3.00"
+withheld_tax = "1.00"
+entitled_units = "5"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1", lot = 2024-02-01 }
+income = "6.00"
+withheld_tax = "2.00"
+entitled_units = "10"
+
+[[expect]]
+as_of = 2024-04-29
+slice = { asset = "X1" }
+income = "0.00"

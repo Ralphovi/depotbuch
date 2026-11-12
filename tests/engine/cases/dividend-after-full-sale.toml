@@ -1,0 +1,107 @@
+name = "dividend-after-full-sale"
+rule = "proposal 0001, Edge cases: a dividend paid after a full sale goes to the lots held before the ex-date; without an ex-date, to the position's last held day"
+working = """
+Account A: 10 units bought 2024-01-02, 5 more 2024-03-01; all 15 sold on 2024-04-16, after the
+ex-date 2024-04-15. Paid 2024-04-30: 7.50 net, 1.50 withheld, split 10:5 ->
+lot 2024-01-02 5.00 / 1.00, lot 2024-03-01 2.50 / 0.50.
+Account B: the same trades and dividend, but the source gives no ex-date. Nothing is held on
+the payment date; the last held day is 2024-04-15, the day before the sale, with the same
+two lots, so the same split, marked approximate.
+"""
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+account = "A"
+asset = "X1"
+units = "10"
+cash = "-100.00"
+
+[[activities]]
+date = 2024-03-01
+type = "buy"
+account = "A"
+asset = "X1"
+units = "5"
+cash = "-55.00"
+
+[[activities]]
+date = 2024-04-16
+type = "sell"
+account = "A"
+asset = "X1"
+units = "-15"
+cash = "170.00"
+
+[[activities]]
+date = 2024-04-30
+type = "dividend"
+account = "A"
+asset = "X1"
+cash = "7.50"
+taxes = "1.50"
+ex_date = 2024-04-15
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+account = "B"
+asset = "X1"
+units = "10"
+cash = "-100.00"
+
+[[activities]]
+date = 2024-03-01
+type = "buy"
+account = "B"
+asset = "X1"
+units = "5"
+cash = "-55.00"
+
+[[activities]]
+date = 2024-04-16
+type = "sell"
+account = "B"
+asset = "X1"
+units = "-15"
+cash = "170.00"
+
+[[activities]]
+date = 2024-04-30
+type = "dividend"
+account = "B"
+asset = "X1"
+cash = "7.50"
+taxes = "1.50"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1", account = "A", lot = 2024-01-02 }
+income = "5.00"
+withheld_tax = "1.00"
+entitled_units = "10"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1", account = "A", lot = 2024-03-01 }
+income = "2.50"
+withheld_tax = "0.50"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1", account = "B", lot = 2024-01-02 }
+income = "5.00"
+withheld_tax = "1.00"
+entitled_units = "10"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1", account = "B", lot = 2024-03-01 }
+income = "2.50"
+withheld_tax = "0.50"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1" }
+income = "15.00"
+units = "0"
