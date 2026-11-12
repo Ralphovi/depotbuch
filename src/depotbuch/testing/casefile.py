@@ -1,4 +1,4 @@
-"""The TOML case format (proposal 0002, *Two kinds of test case*).
+"""The TOML case format (proposal 0002, *Three kinds of test case*).
 
 A case holds activities, assets, prices and FX rates, and the results expected from them:
 
