@@ -228,8 +228,11 @@ class Bank:
     def vorabpauschale(
         self, posted: dt.date, asset: str, amount: Decimal, tax: Decimal = _ZERO
     ) -> VpNotice:
-        """The notice for the year before `posted`, spread over the lots held at its end."""
+        """The notice for the year before `posted`, spread over the lots held at its end.
+        It must come before the year's first trade, while the lots are still those."""
         year = posted.year - 1
+        if any(t.date.year == posted.year for t in self.trades):
+            raise ValueError("a Vorabpauschale comes before the year's first trade")
         queue = self._lots.get(asset, [])
 
         def factor(lot: _Lot) -> Fraction:

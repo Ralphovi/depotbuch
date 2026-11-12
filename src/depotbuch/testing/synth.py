@@ -49,17 +49,25 @@ _SPLIT_FROM = 2
 """Units held from which a distribution may come as two notices."""
 
 
+_HOLIDAYS = {(1, 1), (12, 25), (12, 26)}
+"""Days the bank books nothing, besides weekends."""
+
+
+def _is_business(day: dt.date) -> bool:
+    return day.weekday() < _WEEKEND and (day.month, day.day) not in _HOLIDAYS
+
+
 def _business(day: dt.date) -> dt.date:
-    """`day`, or the next weekday."""
-    while day.weekday() >= _WEEKEND:
+    """`day`, or the next business day."""
+    while not _is_business(day):
         day += _DAY
     return day
 
 
 def _previous_business(day: dt.date) -> dt.date:
-    """The last weekday before `day`."""
+    """The last business day before `day`."""
     day -= _DAY
-    while day.weekday() >= _WEEKEND:
+    while not _is_business(day):
         day -= _DAY
     return day
 
@@ -145,7 +153,7 @@ class _Book:
 
     def day(self, day: dt.date) -> None:
         """Book `day`: Vorabpauschale, trades, Schlusstag, statement, in that order."""
-        if day.weekday() < _WEEKEND:
+        if _is_business(day):
             self._vorabpauschale(day)
             self._trades(day)
             self._announce(day)
@@ -173,7 +181,8 @@ class _Book:
             units = half_up(bank.held(_DIST) * Decimal(rng.randint(20, 60)) / 100, 5)
             price = self.walks[_DIST].next()
             rate = Decimal(rng.choice(("0", "26.375")))
-            bank.sell(day, _DIST, units, price, fees=_fees(units, price), tax_rate=rate)
+            if units * price > 2 * _fees(units, price):  # no sale that only pays its fees
+                bank.sell(day, _DIST, units, price, fees=_fees(units, price), tax_rate=rate)
 
     def _announce(self, day: dt.date) -> None:
         """Note the distributions and coupons whose Schlusstag is `day`."""
@@ -186,6 +195,8 @@ class _Book:
             paid = _business(day + dt.timedelta(days=16))
             self.payouts.append((day, paid, _DIST, per))
         coupon_date = _business(dt.date(day.year, *self.coupon_day))
+        if coupon_date <= day:  # this year's is past: the next is in January or later
+            coupon_date = _business(dt.date(day.year + 1, *self.coupon_day))
         if self.bank.held(_BOND) > 0 and day == _previous_business(coupon_date):
             self.payouts.append((day, coupon_date, _BOND, self.coupon))
 
@@ -205,9 +216,10 @@ class _Book:
             )
 
     def _vorabpauschale(self, day: dt.date) -> None:
-        """On the first business day after New Year, last year's notice per fund held. A
+        """On the year's first business day, before any trade, last year's notice per fund
+        held. A
         distributing fund gets one too when it paid out less than the Vorabpauschale."""
-        if day != _business(dt.date(day.year, 1, 2)):
+        if day != _business(dt.date(day.year, 1, 1)):
             return
         for asset in (_DIST, *_ACC):
             if self.bank.held(asset) > 0:

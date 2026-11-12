@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from depotbuch.testing.bank import Bank, half_up
@@ -35,6 +35,9 @@ def test_an_extreme_history_matches_its_documents(seed: int) -> None:
 
 
 @settings(max_examples=20, deadline=None)
+@example(seed=1992079082, years=2, extreme=True)  # a sale worth less than its fees
+@example(seed=136340575, years=8, extreme=True)  # a trade on 1 January
+@example(seed=42, years=6, extreme=False)  # a coupon whose Schlusstag is in December
 @given(
     seed=st.integers(0, 2**32 - 1),
     years=st.integers(1, 10),
