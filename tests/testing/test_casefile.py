@@ -81,6 +81,8 @@ def test_check_runs_both_modes(tmp_path: Path) -> None:
         ('type = "buy"', 'type = "buy"\nnote = "x"'),  # an unknown activity field
         ('units = "2"\nparqet = { units = "2" }', ""),  # an expectation without metrics
         ('units = "2"\nparqet', "parqet"),  # a parqet value without a default
+        ('2024-01-02 = "1.0956"', '2024-01-02 = "0"'),  # a zero FX rate
+        ('2024-01-02 = "1.0956"', '2024-01-02 = "-1.0956"'),  # a negative FX rate
     ],
 )
 def test_invalid_cases_are_rejected(tmp_path: Path, change: tuple[str, str]) -> None:

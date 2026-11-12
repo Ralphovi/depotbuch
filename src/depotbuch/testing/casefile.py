@@ -114,6 +114,13 @@ class Case(BaseModel):
     fx: dict[Currency, dict[date, Dec]] = Field(default_factory=dict)
     expect: list[Expect] = Field(min_length=1)
 
+    @model_validator(mode="after")
+    def _positive_rates(self) -> Case:
+        for rates in self.fx.values():
+            if any(r <= 0 for r in rates.values()):
+                raise ValueError("FX rates must be positive")
+        return self
+
     @model_validator(mode="before")
     @classmethod
     def _default_account(cls, data: Any) -> Any:
