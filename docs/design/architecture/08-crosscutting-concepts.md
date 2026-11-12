@@ -97,13 +97,19 @@ one, otherwise at the ECB rate for that day. Foreign-currency assets include the
 ## 8.3 Lots and FIFO
 
 Each buy or delivery in opens a lot. Sales close lots first-in first-out within the same
-account, as German tax law does. A delivery in keeps its stated cost basis on the lot, while
-performance counts it at market value on the transfer date (§8.4). Dividends are split
+account, as German tax law does (`depotbuch.engine.lots`). A lot's cost is the cash paid for
+it in EUR, so purchase fees, any tax and any accrued interest paid with it are part of
+invested capital; a sale's realized gain is its cash received after fees and taxes less the
+cost of the units it closes. A sale larger than the account's holding is rejected. A
+delivery in keeps its stated cost basis on the lot, while performance counts it at market
+value on the transfer date (§8.4); a delivery out closes lots without realizing a gain.
+Bonds are lots like any other, with the nominal amount as units (ADR-0014, Proposed). Dividends are split
 across the lots held at the end of the day before the ex-date, in proportion to units; the
 payment date stays the date of the income flow. Without an ex-date, the lots held on the
 payment date are used and the split is marked as approximate. **[OPEN]** Which sources give
 the ex-date: OFX `INCOME` and the Parqet CSV do not. Splits restate history onto the current
-basis. A dividend paid after a full sale belongs to the lots held before the ex-date;
+basis: a split multiplies the units of the account's open lots by its ratio, keeps their
+cost, and takes effect at the start of its day. A dividend paid after a full sale belongs to the lots held before the ex-date;
 without an ex-date it is added to the position's last held day. Average and LIFO are later
 options; because lots are derived, adding them needs no migration.
 
@@ -160,10 +166,18 @@ tracks? Both tools must include the same cash, since idle cash dilutes TTWROR.
 
 Amounts, unit counts, prices and FX rates are `decimal.Decimal` from parsing to output; a
 binary float is rejected at every boundary, not converted (`depotbuch.engine.money`). Each
-amount carries its currency until it is converted to EUR. Intermediate results keep full
-precision. An amount is rounded to the cent, half up, only where a provider rounds it (a
-booked cash amount, a reported tax) and for display and comparison; unit counts, prices and
-FX rates keep the digits the source gives (ADR-0013, Proposed).
+amount carries its currency until it is converted to EUR. Two kinds of number follow
+different rules (ADR-0013, Proposed):
+
+- **Booked amounts** (cash, fees, taxes, a lot's cost, the share of cost or proceeds a sale
+  assigns to a lot, an amount converted to EUR) are in cents. An activity's booked fields
+  must be whole cents below 10^15 (units below 10^15 with at most 12 decimals, FX rates
+  between 10^-6 and 10^6, so sums fit the default decimal context); a share or conversion
+  is computed exactly and rounded once; an amount the engine books is rounded half up when it comes into
+  existence; a booked amount is split in cents whose parts add up to it exactly.
+- **Analytical figures** (values, return factors, TTWROR, IZF) keep full precision and are
+  rounded only for display and comparison. Unit counts, prices and FX rates keep the digits
+  the source gives.
 
 ## 8.7 Imports: identity, reporting, nothing silent
 

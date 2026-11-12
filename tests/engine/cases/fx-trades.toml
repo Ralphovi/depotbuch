@@ -1,0 +1,74 @@
+name = "fx-trades"
+rule = "architecture 8.2: an activity is converted at the broker's rate when given, else the ECB rate"
+working = """
+Rates are USD per EUR; EUR = USD / rate.
+Lot 1, 2024-03-01: 10 units for 1100.00 USD at the broker's 1.1000: 1000.00 EUR.
+Lot 2, 2024-03-01: 5 units for 540.00 USD, no broker rate, ECB 1.0800: 500.00 EUR.
+Sale, Saturday 2024-06-08: 10 units for 1320.00 USD, no broker rate. No ECB rate that day,
+so Friday's 1.2000 applies: 1100.00 EUR. FIFO cost 1000.00 (lot 1): gain 100.00.
+Sale, 2024-06-10: 5 units for 660.00 USD at the broker's 1.2500: 528.00 EUR.
+Cost 500.00 (lot 2): gain 28.00. Total realized 128.00.
+(Multiplying by the rate instead would give 1584.00 EUR for the first sale.)
+"""
+
+[assets.U1]
+currency = "USD"
+
+[fx.USD]
+2024-03-01 = "1.0800"
+2024-06-07 = "1.2000"
+2024-06-10 = "1.1900"
+
+[[activities]]
+date = 2024-03-01
+type = "buy"
+asset = "U1"
+units = "10"
+cash = "-1100.00"
+currency = "USD"
+fx_rate = "1.1000"
+
+[[activities]]
+date = 2024-03-01
+type = "buy"
+asset = "U1"
+units = "5"
+cash = "-540.00"
+currency = "USD"
+
+[[activities]]
+date = 2024-06-08
+type = "sell"
+asset = "U1"
+units = "-10"
+cash = "1320.00"
+currency = "USD"
+
+[[activities]]
+date = 2024-06-10
+type = "sell"
+asset = "U1"
+units = "-5"
+cash = "660.00"
+currency = "USD"
+fx_rate = "1.2500"
+
+[[expect]]
+as_of = 2024-03-01
+slice = { asset = "U1" }
+units = "15"
+invested_capital = "1500.00"
+
+[[expect]]
+as_of = 2024-06-08
+slice = { asset = "U1" }
+units = "5"
+invested_capital = "500.00"
+realized_gain = "100.00"
+
+[[expect]]
+as_of = 2024-06-30
+slice = { asset = "U1" }
+units = "0"
+invested_capital = "0.00"
+realized_gain = "128.00"

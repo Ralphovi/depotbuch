@@ -1,0 +1,38 @@
+name = "delivery-keeps-acquisition-date"
+rule = "proposal 0001, Lots: a delivered lot keeps its place in FIFO order"
+working = """
+Buy 10 on 2022-05-02 for 1500.00 (lot B). On 2024-02-01 a delivery brings in 10 units
+acquired on 2020-03-16 with a cost basis of 900.00 (lot A). FIFO orders by acquisition,
+so A comes first. Selling 10 on 2024-06-03 for 1600.00 closes A: gain 1600.00 - 900.00 =
+700.00, and 10 units costing 1500.00 remain.
+(Ordering by delivery date would close B: gain 100.00, invested 900.00.)
+"""
+
+[[activities]]
+date = 2022-05-02
+type = "buy"
+asset = "X1"
+units = "10"
+cash = "-1500.00"
+
+[[activities]]
+date = 2024-02-01
+type = "transfer"
+asset = "X1"
+units = "10"
+cost_basis = "900.00"
+acquired = 2020-03-16
+
+[[activities]]
+date = 2024-06-03
+type = "sell"
+asset = "X1"
+units = "-10"
+cash = "1600.00"
+
+[[expect]]
+as_of = 2024-06-30
+slice = { asset = "X1" }
+units = "10"
+invested_capital = "1500.00"
+realized_gain = "700.00"

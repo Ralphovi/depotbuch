@@ -1,0 +1,49 @@
+name = "delivery-with-cost-basis"
+rule = "proposal 0001, Lots: a delivery keeps its stated cost basis; a delivery out realizes nothing"
+working = """
+Delivery in: 10 units with a stated cost basis of 800.00 (lot 1). Buy 5 for 600.00 (lot 2).
+Delivery out of 12: all of lot 1 (800.00) and 2 of lot 2 (600.00 x 2/5 = 240.00) leave the
+account. Nothing is realized. Left: 3 units costing 600.00 - 240.00 = 360.00.
+Sale of the 3 for 420.00: realized gain 420.00 - 360.00 = 60.00.
+"""
+
+[[activities]]
+date = 2024-01-10
+type = "transfer"
+asset = "X1"
+units = "10"
+cost_basis = "800.00"
+
+[[activities]]
+date = 2024-02-01
+type = "buy"
+asset = "X1"
+units = "5"
+cash = "-600.00"
+
+[[activities]]
+date = 2024-03-01
+type = "transfer"
+asset = "X1"
+units = "-12"
+
+[[activities]]
+date = 2024-04-02
+type = "sell"
+asset = "X1"
+units = "-3"
+cash = "420.00"
+
+[[expect]]
+as_of = 2024-03-01
+slice = { asset = "X1" }
+units = "3"
+invested_capital = "360.00"
+realized_gain = "0.00"
+
+[[expect]]
+as_of = 2024-04-30
+slice = { asset = "X1" }
+units = "0"
+invested_capital = "0.00"
+realized_gain = "60.00"

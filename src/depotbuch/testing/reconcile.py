@@ -233,12 +233,13 @@ def _check_file(path: Path, details: list[str]) -> int:
         _out(f"{name}: error {type(e).__name__}")
         return 1
     failed = 0
-    for i, metric, mode, want, got in results:
-        ok = want == got
-        _out(f"{name}: expect[{i}] {metric} {mode} {'ok' if ok else 'FAIL'}")
-        if not ok:
+    for r in results:
+        _out(f"{name}: expect[{r.expect}] {r.metric} {r.mode} {'ok' if r.ok else 'FAIL'}")
+        if not r.ok:
             failed += 1
-            details.append(f"{name} expect[{i}] {metric} {mode}: want {want} got {got}")
+            details.append(
+                f"{name} expect[{r.expect}] {r.metric} {r.mode}: want {r.want} got {r.got}"
+            )
     return failed
 
 

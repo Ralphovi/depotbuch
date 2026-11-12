@@ -1,0 +1,53 @@
+name = "fifo-per-account"
+rule = "proposal 0001, Lots: FIFO within the same account"
+working = """
+Account A buys 10 for 1000.00 on 2024-01-02; account B buys 10 for 2000.00 on 2024-02-01.
+B sells 5 for 1100.00. FIFO within B closes half of B's lot: cost 1000.00, gain 100.00.
+(Pooling both accounts would wrongly close A's older lot: cost 500.00, gain 600.00.)
+Invested: A 1000.00, B 1000.00, both 2000.00. Units: A 10, B 5, both 15.
+"""
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+account = "A"
+asset = "X1"
+units = "10"
+cash = "-1000.00"
+
+[[activities]]
+date = 2024-02-01
+type = "buy"
+account = "B"
+asset = "X1"
+units = "10"
+cash = "-2000.00"
+
+[[activities]]
+date = 2024-03-01
+type = "sell"
+account = "B"
+asset = "X1"
+units = "-5"
+cash = "1100.00"
+
+[[expect]]
+as_of = 2024-03-31
+slice = { asset = "X1", account = "B" }
+units = "5"
+invested_capital = "1000.00"
+realized_gain = "100.00"
+
+[[expect]]
+as_of = 2024-03-31
+slice = { asset = "X1", account = "A" }
+units = "10"
+invested_capital = "1000.00"
+realized_gain = "0.00"
+
+[[expect]]
+as_of = 2024-03-31
+slice = { asset = "X1" }
+units = "15"
+invested_capital = "2000.00"
+realized_gain = "100.00"

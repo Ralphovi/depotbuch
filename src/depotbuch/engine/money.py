@@ -1,19 +1,33 @@
-"""Amounts: `decimal.Decimal` from parsing to output, never a binary float.
+"""Amounts: `decimal.Decimal` from parsing to output, never a binary float (ADR-0013).
 
-Intermediate results keep full precision. An amount is rounded to the cent only where a
-provider rounds (a booked cash amount, a reported tax) and for display, half up, as German
-banks round (ADR-0013).
+Two kinds of number follow different rules:
+
+- **Booked amounts** (cash, fees, taxes, a lot's cost, the share of cost or proceeds a sale
+  assigns to a lot, an amount converted to EUR) are ledger entries. Each is in cents,
+  rounded half up when it comes into existence (`book`), and an allocation splits a booked
+  amount into cents that add up to it exactly (`allocate`).
+- **Analytical figures** (values, TTWROR, IZF) keep full precision and are rounded only for
+  display. Units, prices and FX rates keep the digits their source gives.
 """
 
 from __future__ import annotations
 
 import re
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from collections.abc import Iterable
+from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
+from fractions import Fraction
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict
 
 CENT = Decimal("0.01")
+MAX_BOOKED = Decimal(10) ** 15
+"""Booked amounts and units stay below 10^15, units have at most `UNIT_PLACES` decimals and
+FX rates lie within `MIN_RATE`..`MAX_RATE`, so sums of them and every booked result fit the
+default 28-digit decimal context (ADR-0013). Real amounts, holdings and ECB rates are orders
+of magnitude inside these bounds."""
+UNIT_PLACES = 12
+MIN_RATE, MAX_RATE = Decimal("1E-6"), Decimal("1E6")
 _CURRENCY = re.compile(r"[A-Z]{3}")
 
 
@@ -45,6 +59,107 @@ def to_decimal(value: object) -> Decimal:
 def round_cent(amount: Decimal) -> Decimal:
     """Round to the cent, half up."""
     return amount.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+book = round_cent
+"""Book an amount: to the cent, half up, as German banks round."""
+
+
+_WIDE = Context(prec=80)
+"""Wide enough that a sum of bounded amounts or units (`MAX_BOOKED`) is exact."""
+
+
+def exact_sum(values: Iterable[Decimal]) -> Decimal:
+    """The exact sum of bounded amounts or units, which the 28-digit context could round
+    once a total needs more digits than any of its parts."""
+    total = Decimal(0)
+    for v in values:
+        total = _WIDE.add(total, v)
+    return total
+
+
+def book_exact(value: Fraction) -> Decimal:
+    """Book an exact value to the cent, half up (a tie away from zero, as `round_cent`).
+
+    Shares and conversions are computed as fractions and rounded once here: a quotient
+    rounded to the decimal context's digits first could round to the wrong cent.
+    """
+    cents = abs(value) * 100
+    whole = int(cents)
+    if cents - whole >= Fraction(1, 2):
+        whole += 1
+    return Decimal((0 if value >= 0 else 1, tuple(int(d) for d in str(whole)), -2))
+
+
+def is_units(units: Decimal) -> bool:
+    """True if `units` is a unit count depotbuch computes with exactly (see `MAX_BOOKED`):
+    at most `UNIT_PLACES` significant decimals (trailing zeros don't count), read from the
+    digits so no decimal context limits it."""
+    _, digits, exponent = units.as_tuple()
+    if not isinstance(exponent, int):  # NaN or infinity
+        return False
+    significant = len(digits)
+    while significant > 1 and digits[significant - 1] == 0:
+        significant -= 1
+    places = -exponent - (len(digits) - significant)
+    zero = not any(digits)
+    return (zero or places <= UNIT_PLACES) and units.copy_abs() < MAX_BOOKED
+
+
+def is_rate(rate: Decimal) -> bool:
+    """True if `rate` is an FX rate or split ratio depotbuch computes with (see
+    `MAX_BOOKED`); a split ratio also has at most `UNIT_PLACES` decimals."""
+    return rate.is_finite() and MIN_RATE <= rate <= MAX_RATE
+
+
+def multiply_units(units: Decimal, ratio: Decimal) -> Decimal:
+    """`units x ratio` exactly, with no rounding to the decimal context. A split's result
+    that leaves the unit bounds (`is_units`) is rejected rather than rounded."""
+    exact = Context(prec=100).multiply(units, ratio)  # bounded operands: < 50 digits
+    if not is_units(exact):
+        raise ValueError("a split leaves units outside 10^15 and 12 decimals")
+    return exact
+
+
+def is_booked(amount: Decimal) -> bool:
+    """True if `amount` is a whole number of cents. Read from its digits, so no decimal
+    context limits it: a huge amount is checked as reliably as a small one."""
+    _, digits, exponent = amount.as_tuple()
+    if not isinstance(exponent, int):  # NaN or infinity
+        return False
+    below_cent = -2 - exponent
+    return below_cent <= 0 or not any(digits[-below_cent:])
+
+
+def share(amount: Decimal, part: Decimal, whole: Decimal) -> Decimal:
+    """The booked share `part / whole` of a booked `amount`: amount x part / whole, to the
+    cent. The rest is `amount - share(...)`, so the two always add up to `amount`."""
+    if whole == 0:
+        raise ValueError("a share of nothing")
+    return book_exact(Fraction(amount) * Fraction(part) / Fraction(whole))
+
+
+def allocate(amount: Decimal, weights: list[Decimal]) -> list[Decimal]:
+    """Split a booked `amount` in cents, pro rata to non-negative `weights`.
+
+    Cumulative shares are booked and each part is the difference to the previous one, so
+    the parts add up to `amount` exactly, each is within a cent of its exact share, and no
+    part has the opposite sign of `amount`.
+    """
+    if any(w < 0 for w in weights):
+        raise ValueError("weights can't be negative")
+    total = exact_sum(weights)
+    if total <= 0:
+        raise ValueError("an allocation needs a positive weight")
+    parts: list[Decimal] = []
+    booked = Decimal(0)
+    cumulative = Decimal(0)
+    for w in weights:
+        cumulative = _WIDE.add(cumulative, w)
+        upto = amount if cumulative == total else share(amount, cumulative, total)
+        parts.append(upto - booked)
+        booked = upto
+    return parts
 
 
 def _currency(code: str) -> str:

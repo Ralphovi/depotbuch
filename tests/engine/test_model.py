@@ -51,6 +51,14 @@ def test_valid_activities(kw: dict[str, Any]) -> None:
         {"type": "buy", "units": "1", "cash": "-1"},  # no asset
         {"type": "dividend", "asset": "X1", "units": "1", "cash": "1"},  # income with units
         {"type": "transfer", "asset": "X1", "units": "3", "cash": "-1"},  # transfer with cash
+        {"type": "transfer", "asset": "X1", "units": "3", "cost_basis": "-1"},
+        {"type": "transfer", "asset": "X1", "units": "-3", "cost_basis": "100"},  # out
+        {"type": "buy", "asset": "X1", "units": "1", "cash": "-1", "cost_basis": "1"},
+        {"type": "buy", "asset": "X1", "units": "1", "cash": "-1.005"},  # a part cent
+        {"type": "buy", "asset": "X1", "units": "1", "cash": "-1", "fees": "0.001"},
+        {"type": "vorabpauschale", "asset": "X1", "amount": "5.975"},
+        {"type": "transfer", "asset": "X1", "units": "3", "acquired": "2025-01-01"},  # later
+        {"type": "buy", "asset": "X1", "units": "1", "cash": "-1", "acquired": "2020-01-01"},
         {"type": "split", "asset": "X1"},  # split without ratio
         {"type": "split", "asset": "X1", "ratio": "2", "cash": "-1"},  # split with cash
         {"type": "dividend", "asset": "X1", "cash": "-1"},  # negative income
@@ -76,3 +84,43 @@ def test_validation_errors_never_repeat_values() -> None:
     messages = " ".join(e["msg"] for e in err.value.errors())
     assert "98765" not in messages
     assert "4321" not in messages
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"cash": "-1000000000000000.00"},
+        {"cash": "-1E26"},
+        {"cash": "-1E+1000000"},
+        {"units": "1E+1000000"},
+        {"fx_rate": "0.0000001", "currency": "USD"},
+        {"fx_rate": "1000001", "currency": "USD"},
+    ],
+)
+def test_amounts_and_rates_outside_the_decimal_context_are_rejected(
+    fields: dict[str, str],
+) -> None:
+    """Bounds that keep every booking exact in the default 28-digit context (ADR-0013)."""
+    with pytest.raises(ValidationError):
+        act(**{"type": "buy", "asset": "X1", "units": "1", "cash": "-1.00", **fields})
+
+
+def test_the_largest_booked_amount_is_accepted() -> None:
+    assert act(type="buy", asset="X1", units="1", cash="-999999999999999.99").cash < 0
+
+
+@pytest.mark.parametrize("units", ["1E15", "0.0000000000001"])
+def test_units_outside_the_decimal_context_are_rejected(units: str) -> None:
+    with pytest.raises(ValidationError, match="units"):
+        act(type="buy", asset="X1", units=units, cash="-1.00")
+
+
+@pytest.mark.parametrize("ratio", ["1E+999999", "0.0000001", "1000001", "1.0000000000001"])
+def test_split_ratios_outside_the_bounds_are_rejected(ratio: str) -> None:
+    with pytest.raises(ValidationError, match="ratio"):
+        act(type="split", asset="X1", ratio=ratio)
+
+
+def test_a_negative_vorabpauschale_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="Vorabpauschale"):
+        act(type="vorabpauschale", asset="X1", amount="-1.00")

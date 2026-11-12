@@ -1,8 +1,4 @@
-"""Units held, the first figure the engine derives from activities.
-
-Lots, invested capital and realized gains arrive with #22; this is the plain unit count
-the case harness needs to check holdings statements.
-"""
+"""Units held: the unit count of the open FIFO lots (`depotbuch.engine.lots`)."""
 
 from __future__ import annotations
 
@@ -10,7 +6,8 @@ from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 
-from depotbuch.engine.model import Activity, ActivityType
+from depotbuch.engine.lots import build_lots
+from depotbuch.engine.model import Activity
 
 
 def units_held(
@@ -20,12 +17,12 @@ def units_held(
     asset: str,
     account: str | None = None,
 ) -> Decimal:
-    """Units of `asset` held at the end of `as_of`, in one account or across all."""
-    total = Decimal(0)
-    for a in sorted(activities, key=lambda a: a.date):
-        if a.date > as_of or a.asset != asset or (account is not None and a.account != account):
-            continue
-        if a.type is ActivityType.SPLIT:
-            raise NotImplementedError("splits arrive with the FIFO lots (#22)")
-        total += a.units
-    return total
+    """Units of `asset` held at the end of `as_of`, in one account or across all.
+
+    Splits apply; a sale of more than the account holds raises `Oversold`. Only the
+    asked-for asset and account are replayed, so other positions can't stop the count.
+    """
+    own = [
+        a for a in activities if a.asset == asset and (account is None or a.account == account)
+    ]
+    return build_lots(own, as_of, costs=False).units(asset=asset, account=account)
