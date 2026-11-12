@@ -6,7 +6,7 @@ import pytest
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.income import NotEntitled, income, taxes
-from depotbuch.engine.model import Account, Activity, Asset, AssetKind
+from depotbuch.engine.model import Account, Activity, Asset, AssetKind, DepositTerms
 
 D = date(2024, 6, 28)
 
@@ -109,3 +109,21 @@ def test_income_elsewhere_doesnt_stop_the_slice() -> None:
     stray = act(date=D, type="dividend", asset="X2", cash="1.00", ex_date=D)
     div = act(date=D, type="dividend", asset="X1", cash="5.00")
     assert [s.net for s in income([BUY, stray, div], D, asset="X1")] == [Decimal("5.00")]
+
+
+def test_a_festgeld_asset_slice_takes_the_whole_account() -> None:
+    terms = DepositTerms(
+        principal=Decimal("1000.00"),
+        rate=Decimal(3),
+        start=date(2024, 1, 2),
+        maturity=date(2025, 1, 2),
+    )
+    fg = {"fg": Account(id="fg", provider="bank", deposit=terms)}
+    acts = [
+        act(type="deposit", account="fg", asset="FG1", cash="1000.00"),
+        act(date=D, type="interest", account="fg", cash="7.50", taxes="2.50"),
+    ]
+    (share,) = income(acts, D, accounts=fg, asset="FG1")
+    assert (share.net, share.lot_opened) == (Decimal("7.50"), None)
+    assert taxes(acts, D, accounts=fg, asset="FG1") == Decimal("2.50")
+    assert income(acts, D, asset="FG1") == []

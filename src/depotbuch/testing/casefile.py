@@ -320,6 +320,7 @@ def _income_shares(case: Case, expect: Expect) -> list[IncomeShare]:
         expect.as_of,
         case.fx_rates(),
         assets=case.asset_map(),
+        accounts=case.account_map(),
         asset=sl.asset,
         account=sl.account,
         since=expect.since,

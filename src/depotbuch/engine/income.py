@@ -77,6 +77,7 @@ def income(
     fx: FxRates | None = None,
     *,
     assets: Mapping[str, Asset] | None = None,
+    accounts: Mapping[str, Account] | None = None,
     asset: str | None = None,
     account: str | None = None,
     since: dt.date | None = None,
@@ -84,26 +85,26 @@ def income(
     """Income paid after `since` (exclusive) up to the end of `as_of`, per lot.
 
     Only the slice's positions are replayed, so a problem in another position doesn't stop
-    it. An asset that isn't in `assets` is a security.
+    it. An asset that isn't in `assets` is a security. A Festgeld account (one with deposit
+    terms in `accounts`) is one balance, so its asset's slice is the whole account.
     """
     rates = fx or FxRates()
     kinds = {i: a.kind for i, a in (assets or {}).items()}
-    every = [
-        a
-        for a in activities
-        if (asset is None or a.asset == asset) and (account is None or a.account == account)
-    ]
+    festgeld = {i for i, acc in (accounts or {}).items() if acc.deposit is not None}
+    every = _slice(list(activities), festgeld, asset, account)
+    positions: dict[tuple[str, str | None], list[Activity]] = {}
+    for a in every:
+        positions.setdefault((a.account, a.asset), []).append(a)
     out: list[IncomeShare] = []
     for a in every:
         if a.type not in _INCOME or a.date > as_of or (since is not None and a.date <= since):
             continue
         net = rates.book_eur(a.cash, a.currency, a.date, a.fx_rate)
         tax = rates.book_eur(a.taxes, a.currency, a.date, a.fx_rate)
-        if a.asset is None or kinds.get(a.asset) in _BALANCES:
+        if a.asset is None or kinds.get(a.asset) in _BALANCES or a.account in festgeld:
             out.append(IncomeShare(a.date, a.account, a.asset, net, tax))
             continue
-        position = [b for b in every if b.asset == a.asset and b.account == a.account]
-        lots, approximate = _entitled(position, a)
+        lots, approximate = _entitled(positions[a.account, a.asset], a)
         units = [lot.units for lot in lots]
         for lot, part, part_tax in zip(
             lots, allocate(net, units), allocate(tax, units), strict=True
@@ -122,6 +123,20 @@ def income(
                 )
             )
     return out
+
+
+def _slice(
+    activities: list[Activity], festgeld: set[str], asset: str | None, account: str | None
+) -> list[Activity]:
+    """The slice's activities. By asset, a Festgeld account that books the asset counts
+    whole, its bookings without an asset included (ADR-0015)."""
+    whole = {a.account for a in activities if a.asset == asset and a.account in festgeld}
+    return [
+        a
+        for a in activities
+        if (asset is None or a.asset == asset or a.account in whole)
+        and (account is None or a.account == account)
+    ]
 
 
 def _held(position: list[Activity], day: dt.date) -> list[Lot]:
@@ -171,26 +186,18 @@ def taxes(
     """The taxes of the slice after `since` (exclusive) up to the end of `as_of`, in EUR.
 
     A tax belongs to its activity's asset; without an asset (a yearly settlement), to its
-    account, and so to the account's provider. A slice by asset leaves those out. An
-    account not in `accounts` belongs to no named provider.
+    account, and so to the account's provider. A slice by asset leaves those out, except in
+    a Festgeld account, which is one balance. An account not in `accounts` belongs to no
+    named provider.
     """
     rates = fx or FxRates()
     known = accounts or {}
-
-    def in_slice(a: Activity) -> bool:
-        return (
-            (asset is None or a.asset == asset)
-            and (account is None or a.account == account)
-            and (
-                provider is None
-                or (a.account in known and known[a.account].provider == provider)
-            )
-            and a.date <= as_of
-            and (since is None or a.date > since)
-        )
-
+    festgeld = {i for i, acc in known.items() if acc.deposit is not None}
     return exact_sum(
         rates.book_eur(tax_of(a), a.currency, a.date, a.fx_rate)
-        for a in activities
-        if in_slice(a) and tax_of(a)
+        for a in _slice(list(activities), festgeld, asset, account)
+        if (provider is None or (a.account in known and known[a.account].provider == provider))
+        and a.date <= as_of
+        and (since is None or a.date > since)
+        and tax_of(a)
     )
