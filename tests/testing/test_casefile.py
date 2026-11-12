@@ -171,6 +171,7 @@ taxable_gain = "164.55"
         ("2025-03-01", "depot", False),  # after the sale: irrelevant
         ("2023-03-01", "other", False),  # another account: irrelevant
         ("2023-03-01", "depot", True),  # between the notice and the sale
+        ("2023-01-01", "depot", True),  # after the covered year end, on the notice's day
     ],
 )
 def test_only_a_relevant_split_blocks_the_vorabpauschale_deduction(
