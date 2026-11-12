@@ -31,8 +31,8 @@ step. A reconciliation outside the repository has already shown that it is usabl
   positions sum to its stated total.
 - FIFO cost, with fees in the cost basis, reproduces the taxable gain the bank reports for
   both sales (proceeds after fees, less FIFO cost, less the 30 % partial exemption for
-  equity funds) to within 1–2 cents. No rounding mode explains the remaining cents; finding out
-  what does is part of M1 (see *Open questions*).
+  equity funds) to the cent, once the partial exemption is computed the way the bank does:
+  per lot, rounded to the cent there (see *Open questions*).
 - The history holds savings plans, lump-sum buys and sales, reinvested distributions,
   Vorabpauschale notices, a federal bond bought with accrued interest and its coupons, and
   confirmations that the bank later corrected under the same order number.
@@ -125,7 +125,7 @@ reviewed its code and before it is merged.
 | # | Pull request | Rules (proposal 0001) | Done when |
 |---|---|---|---|
 | 1 | **Types and case harness.** `Money` (Decimal plus currency), asset, account and activity types (pydantic); the rounding policy; the TOML case loader and the private-corpus runner. | *Money and numbers* (arch. §8.6) | A case file loads into engine types and round-trips, including a foreign-currency asset with FX rates; floats are rejected; `nox -s reconcile` refuses to run without a corpus path, and `nox -s gate` doesn't pass one to any test. Before reading or writing anything, the runner resolves the corpus path and its report file and refuses either if it lies inside a Git worktree that has a remote or shares depotbuch's history (any clone or worktree of this repository), or if the report path is a symlink. A corpus kept in its own local repository with no remote is allowed. It names cases by their file name, which the owner keeps synthetic (`c01.toml`), and reports parse and validation errors by file, field and error kind, never with the input's text. Tests with captured stdout and stderr feed it a failing case, a malformed TOML file, a value that fails validation a corpus path inside the checkout, one inside a sibling worktree, one inside a separate clone and a symlinked report path, and assert that no value from the case file, and no key the case defines (asset and account names, dates), appears in the output; the fixed field names of the format may. |
-| 2 | **Holdings and FIFO lots.** Buys, sales, deliveries in and out, splits; fees in the cost basis; nominal-quoted bonds; invested capital and realized gain. | *Lots*, *Edge cases* (splits) | Public cases for partial sales across lots, a split, a delivery with stated cost basis, and the same asset in two accounts where a sale from one must not consume the older lot in the other; a USD buy and sale, once with the broker's rate on each activity and once without, so that cost and realized gain use the broker's rate when given and the ECB rate otherwise; property: lots sum to holdings. Private: units match every holdings statement, and for both sales the taxable gain computed as (pre-tax FIFO gain − the gross Vorabpauschale already assessed on the units sold, from the notices) × (1 − the partial exemption) matches the bank's taxable gain within the tolerance set under *Open questions*. That comparison lives in the private harness; the engine's realized gain stays the after-tax figure 0001 defines. |
+| 2 | **Holdings and FIFO lots.** Buys, sales, deliveries in and out, splits; fees in the cost basis; nominal-quoted bonds; invested capital and realized gain. | *Lots*, *Edge cases* (splits) | Public cases for partial sales across lots, a split, a delivery with stated cost basis, and the same asset in two accounts where a sale from one must not consume the older lot in the other; a USD buy and sale, once with the broker's rate on each activity and once without, so that cost and realized gain use the broker's rate when given and the ECB rate otherwise; property: lots sum to holdings. Private: units match every holdings statement, and for both sales the taxable gain computed as (pre-tax FIFO gain − the gross Vorabpauschale already assessed on the units sold, from the notices) × (1 − the partial exemption) matches the bank's taxable gain to the cent, with the partial exemption rounded per lot as the bank does (*Open questions*). That comparison lives in the private harness; the engine's realized gain stays the after-tax figure 0001 defines. |
 | 3 | **Valuation per asset type.** Security units × close converted to EUR (divided by the ECB rate), a bond as nominal × price in percent, cash balances, Festgeld accrual, carry-forward over gaps. | *Valuation by asset type* (arch. §8.2) | Public cases for each asset type; an FX case whose expected value only holds if the rate is divided, not multiplied; Festgeld cases for each supported day-count convention (actual/365, actual/360 and 30E/360, the European 30/360 used by German banks, held in the account's Festgeld terms along with whether interest accrues on the start day and the maturity day), including a deposit across 29 February, one that starts or ends on the 31st of a month, and the value on the maturity day itself; a carry-forward case valued on a day after the last close and the last FX rate, which must use those and never zero. Private: the value of each position in each holdings statement, from the statement's own price, to the cent. |
 | 4 | **Income and taxes.** Dividends split across lots by the day before the ex-date; withheld tax; tax attribution to the asset or the provider; Vorabpauschale. | *Lots* (dividends), *Taxes are attributed where they arise* | Public cases for a dividend after a partial sale, one paid after a full sale (to the lots held before the ex-date, and without an ex-date to the position's last held day), one without an ex-date while units are held (marked approximate), a year-end tax total on the provider; private: net income per distribution equals the notice. |
 | 5 | **Trade-to-cash matching.** Pairing each investment activity with its cash line on the Verrechnungskonto by provider, amount and a booking date up to 3 business days later; listing what stays unmatched. | *No double counting* | Public cases for a match on the third business day, a near-miss on the fourth, two trades of equal amount, and an unmatched line on each side; property: no cash line is counted twice. |
@@ -147,8 +147,7 @@ Vorabpauschale in PR 4), so the decision itself goes through the ADR process.
   takes, converted amounts) are in cents, rounded half up when they come into existence and
   split in cents that add up exactly. Analytical figures (values, TTWROR, IZF) keep full
   `Decimal` precision until display. Unit counts keep the precision the statement gives
-  (ADR-0013). This resolves the open point in architecture §8.6, subject to the cent
-  question below.
+  (ADR-0013). This resolves the open point in architecture §8.6.
 - **Vorabpauschale is an activity, not income.** The engine doesn't compute it, since that
   needs the Basiszins and the fund's year-start and year-end prices. It takes the amount from
   the provider's notice. Any tax withheld on it is a tax of that asset (R, negative, for the
@@ -171,7 +170,8 @@ check FIFO, not to reproduce the tax computation.
 ## Alternatives considered
 
 - **Hand-computed cases only.** Cheaper, but checks the rules only against our own reading
-  of them. The 1–2 cent gap on real sales would not have shown up.
+  of them. The bank's per-lot rounding of the partial exemption, 1–3 cents on a real sale,
+  would not have shown up.
 - **Commit anonymized real statements.** Rewriting amounts in a real statement keeps its
   shape but breaks its arithmetic, and a missed field leaks data into a public repository
   that cannot take it back. Invented cases shaped after the real ones give the same
@@ -192,7 +192,7 @@ M1 is done when:
    statement, position values match each statement's prices to the cent, net income matches
    every distribution notice, and for both sales the pre-tax FIFO gain after the partial
    exemption, with any Vorabpauschale already assessed on the units sold deducted before the
-   exemption, matches the bank's taxable gain within the tolerance decided under *Open questions*.
+   exemption, matches the bank's taxable gain to the cent.
 4. `nox -s gate` passes on Python 3.11 to 3.14, and the engine still imports without Django.
 
 ## Security impact
@@ -229,12 +229,15 @@ and may change with the engine types.
 
 ## Open questions
 
-- [ ] **The remaining cents.** FIFO cost reproduces the bank's taxable sale gain to within
-  1–3 cents, in both directions, and no rounding mode (half-up, half-even, down; per lot or
-  per sale; per-unit cost at 2 to 8 places) or FIFO per custody pool closes the gap. Candidates: the bank's cost per lot is stored with a different
-  precision, or reinvested distributions enter the cost basis differently. Until this is
-  explained, what tolerance does the private reconciliation allow on realized gains, and
-  does the explanation change how depotbuch computes invested capital?
+- [x] **The remaining cents.** FIFO cost reproduced the bank's taxable sale gain only to
+  within 1–3 cents. Resolved in #31: the bank's gross gain matches the engine's to the cent;
+  the difference is in the partial exemption, which Consorsbank works out per lot. It
+  spreads the sale's proceeds per unit, rounded to 4 decimals, over the lots, books each
+  lot's proceeds to the cent, and rounds each lot's exemption to the cent. Reproduced this
+  way, both sales match to the cent and the private reconciliation needs no tolerance. It
+  doesn't change invested capital or realized gain. Both sales carried no Vorabpauschale,
+  so how the bank combines the two per lot is still unconfirmed; the private harness
+  deducts each lot's share before the exemption. The tax view (M2) follows this in an ADR.
 - [ ] **Paid accrued interest on bonds:** part of the purchase cost (as above), or negative
   income in the year it is paid, as German tax treats it?
 - [ ] **Which Consorsbank date is the ex-date?** Its distribution notices give a

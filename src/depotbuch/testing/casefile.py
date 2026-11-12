@@ -44,7 +44,7 @@ from __future__ import annotations
 import tomllib
 from collections.abc import Callable
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -52,7 +52,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.holdings import units_held
-from depotbuch.engine.lots import LotBook, build_lots
+from depotbuch.engine.lots import LotBook, Realization, build_lots
 from depotbuch.engine.model import Activity, ActivityType, Asset, AssetKind
 from depotbuch.engine.money import Currency, Dec, round_cent
 
@@ -276,13 +276,14 @@ def _assess(queue: list[_TaxLot], amount: Decimal, year: int) -> None:
             lot.vp_per_unit += amount * _vp_factor(lot.opened, year) / weight
 
 
-def _close_tax_lots(queue: list[_TaxLot], units: Decimal) -> Decimal:
-    """Close `units` FIFO; return the Vorabpauschale they carried."""
-    left, carried = units, Decimal(0)
+def _close_tax_lots(queue: list[_TaxLot], units: Decimal) -> list[Decimal]:
+    """Close `units` FIFO; return the Vorabpauschale each closed lot slice carried, in the
+    order the engine's realizations close them."""
+    left, carried = units, []
     while left > 0 and queue:
         lot = queue[0]
         take = min(lot.units, left)
-        carried += lot.vp_per_unit * take
+        carried.append(lot.vp_per_unit * take)
         lot.units -= take
         left -= take
         if lot.units == 0:
@@ -290,15 +291,18 @@ def _close_tax_lots(queue: list[_TaxLot], units: Decimal) -> Decimal:
     return carried
 
 
-def _vp_deductions(case: Case, asset: str, as_of: date) -> dict[tuple[date, str], Decimal]:
-    """Per sale (date, account): the Vorabpauschale already assessed on the units it sold.
+def _vp_deductions(
+    case: Case, asset: str, as_of: date
+) -> dict[tuple[date, str], list[Decimal]]:
+    """Per sale (date, account): the Vorabpauschale already assessed on the units it sold,
+    per lot slice it closed.
 
     Replays the asset's lots in each account in the engine's FIFO order (a delivery by its
     acquisition date). Each lot carries the Vorabpauschale per unit assessed on it; a split
     divides that by its ratio; a sale deducts per unit closed what its lot carries.
     """
     lots: dict[str, list[_TaxLot]] = {}
-    out: dict[tuple[date, str], Decimal] = {}
+    out: dict[tuple[date, str], list[Decimal]] = {}
     for when, a in _vp_events(case, asset, as_of):
         queue = lots.setdefault(a.account, [])
         if a.type is ActivityType.VORABPAUSCHALE:
@@ -316,30 +320,50 @@ def _vp_deductions(case: Case, asset: str, as_of: date) -> dict[tuple[date, str]
         else:
             carried = _close_tax_lots(queue, -a.units)
             if a.type is ActivityType.SELL:
-                out[(a.date, a.account)] = out.get((a.date, a.account), Decimal(0)) + carried
+                out.setdefault((a.date, a.account), []).extend(carried)
     return out
 
 
-def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
-    """For the private corpus: a provider's taxable gain on fund sales, rebuilt from FIFO.
+_PRICE = Decimal("0.0001")
+"""The precision of the price per unit a sale's proceeds are spread over its lots with."""
 
-    (gain before tax - Vorabpauschale already assessed on the units sold)
-    x (1 - partial exemption), the deduction from `_vp_deductions`. Not an engine figure:
-    the engine computes no German tax.
+
+def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    """For the private corpus: a provider's taxable gain on fund sales, rebuilt from FIFO
+    the way Consorsbank computes it. Not an engine figure: the engine computes no German tax.
+
+    Per sale, the gain before tax less the Vorabpauschale already assessed on the units
+    sold (`_vp_deductions`), less the partial exemption. The exemption is worked out per
+    lot and rounded to the cent there: each lot's proceeds are its units x the sale's
+    proceeds per unit rounded to 4 decimals, booked to the cent, and its exemption is
+    (those proceeds - its cost - its Vorabpauschale) x the exemption rate. Taking the rate
+    of the whole gain instead is 1 to 3 cents off the bank's statements.
     """
     del parqet
     asset = _asset(expect, "taxable_gain")
     spec = case.assets.get(asset)
     if spec is None or spec.partial_exemption is None:
         raise ValueError("taxable_gain needs the asset's partial_exemption")
+    rate = spec.partial_exemption / 100
     rs = _book(case, expect).realizations(
         asset=asset, account=expect.slice.account, since=expect.since
     )
     vp = _vp_deductions(case, asset, expect.as_of)
-    sales = {(r.date, r.account) for r in rs}
-    deducted = sum((vp.get(k, Decimal(0)) for k in sales), Decimal(0))
-    before_tax = sum((r.gain + r.taxes for r in rs), Decimal(0))
-    return (before_tax - deducted) * (1 - spec.partial_exemption / 100)
+    sales: dict[tuple[date, str], list[Realization]] = {}
+    for r in rs:
+        sales.setdefault((r.date, r.account), []).append(r)
+    total = Decimal(0)
+    for key, slices in sales.items():
+        carried = vp.get(key) or [Decimal(0)] * len(slices)
+        if len(carried) != len(slices):
+            raise ValueError("the Vorabpauschale replay is out of step with the lots")
+        units = sum((r.units for r in slices), Decimal(0))
+        received = sum((r.proceeds + r.taxes for r in slices), Decimal(0))
+        price = (received / units).quantize(_PRICE, rounding=ROUND_HALF_UP)
+        for r, deducted in zip(slices, carried, strict=True):
+            lot_gain = round_cent(price * r.units) - r.cost - deducted
+            total += r.gain + r.taxes - deducted - round_cent(lot_gain * rate)
+    return total
 
 
 METRICS: dict[str, Metric] = {

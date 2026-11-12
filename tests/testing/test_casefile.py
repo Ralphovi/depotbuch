@@ -263,3 +263,39 @@ def test_vorabpauschale_is_spread_over_the_year_end_holding(tmp_path: Path) -> N
     )
     results = check(load_case(write(tmp_path, text)))
     assert all(r.ok for r in results), results
+
+
+def test_the_partial_exemption_is_rounded_per_lot(tmp_path: Path) -> None:
+    """Two lots of 1 unit at 1.00, sold together for 2.10: 1.05 per unit, so each lot gains
+    0.05 and its 30 % exemption, 0.015, is booked as 0.02. Taxable 0.10 - 0.04 = 0.06, where
+    30 % of the whole gain would give 0.10 - 0.03 = 0.07 (Consorsbank rounds per lot)."""
+    text = """
+name = "per-lot"
+rule = "private taxable_gain"
+[assets.F1]
+partial_exemption = "30"
+[[activities]]
+date = 2023-01-02
+type = "buy"
+asset = "F1"
+units = "1"
+cash = "-1.00"
+[[activities]]
+date = 2023-01-03
+type = "buy"
+asset = "F1"
+units = "1"
+cash = "-1.00"
+[[activities]]
+date = 2023-06-01
+type = "sell"
+asset = "F1"
+units = "-2"
+cash = "2.10"
+[[expect]]
+as_of = 2023-06-30
+slice = { asset = "F1" }
+taxable_gain = "0.06"
+"""
+    results = check(load_case(write(tmp_path, text)))
+    assert all(r.ok for r in results), results
