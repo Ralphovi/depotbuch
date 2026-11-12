@@ -2,10 +2,10 @@
 
 `history(seed)` invents a depot shaped like a real long-term one: monthly savings plans
 into a few funds, now and then a buy or a partial sale on an exchange, quarterly
-distributions (some in two notices), a yearly Vorabpauschale, a bond bought with accrued
-interest and its yearly coupon, and quarterly holdings statements. Only the kinds of event
-and the bank's rules come from a real history; every asset, date, price and amount is
-drawn from a seeded random generator.
+distributions (some in two notices), a yearly Vorabpauschale on each fund, a bond bought
+with accrued interest and its yearly coupon, and quarterly holdings statements. Only the
+kinds of event and the bank's rules come from a real history; every asset, date, price and
+amount is drawn from a seeded random generator.
 
 The bank model (`depotbuch.testing.bank`) books the history and prints its documents, and
 `to_case` turns them into a case: the activities an importer would read, and as
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import math
 import random
 import sys
 from dataclasses import dataclass
@@ -30,9 +31,10 @@ from depotbuch.testing.bank import Bank, Notice, half_up
 
 _DAY = dt.timedelta(days=1)
 _ACC = ("F2", "F3")
-"""Accumulating funds: no distributions, a Vorabpauschale every January."""
+"""Accumulating funds: no distributions."""
 _DIST = "F1"
-"""The distributing equity fund: quarterly distributions, the partial sales."""
+"""The distributing equity fund: quarterly distributions, the partial sales. Every fund
+gets a Vorabpauschale notice each January, so a sale deducts what was assessed on it."""
 _BOND = "B1"
 _QUARTER_ENDS = ((3, 31), (6, 30), (9, 30), (12, 31))
 _DIST_MONTHS = (2, 5, 8, 11)
@@ -116,8 +118,10 @@ class _Book:
         low, high = (
             (Decimal("0.05"), Decimal(20000)) if extreme else (Decimal(20), Decimal(300))
         )
+        # Log-uniform, so a wide range reaches its cents as often as its thousands.
+        span = math.log(high) - math.log(low)
         self.walks = {
-            a: _Walk(rng, half_up(low + (high - low) * Decimal(rng.random()), 2), 2)
+            a: _Walk(rng, max(half_up(low * Decimal(math.exp(rng.random() * span)), 2), low), 2)
             for a in (_DIST, *_ACC)
         }
         self.walks[_BOND] = _Walk(rng, Decimal(rng.randint(9500, 11500)) / 100, 3)
@@ -201,10 +205,11 @@ class _Book:
             )
 
     def _vorabpauschale(self, day: dt.date) -> None:
-        """On the first business day after New Year, last year's notice per fund held."""
+        """On the first business day after New Year, last year's notice per fund held. A
+        distributing fund gets one too when it paid out less than the Vorabpauschale."""
         if day != _business(dt.date(day.year, 1, 2)):
             return
-        for asset in _ACC:
+        for asset in (_DIST, *_ACC):
             if self.bank.held(asset) > 0:
                 top = 20000 if self.extreme else 9000
                 amount = half_up(Decimal(self.rng.randint(0, top)) / 100)

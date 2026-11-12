@@ -46,6 +46,29 @@ def test_any_synthetic_history_matches_its_documents(
     assert _failures(seed, years=years, extreme=extreme) == []
 
 
+def test_the_histories_reach_what_they_are_for() -> None:
+    """Across the fixed seeds: a taxable sale after a Vorabpauschale on the fund sold, a
+    distribution in two notices, a coupon, and in extreme mode a price below 1."""
+    normal = [history(seed).bank for seed in range(1, 9)]
+    extreme = [history(seed, years=9, extreme=True) for seed in range(1, 5)]
+    assert any(
+        s.date > v.posted and v.asset == s.asset and v.amount
+        for b in normal
+        for s in b.sale_taxes
+        for v in b.vps
+    )
+    assert any(
+        a.paid == b.paid and a is not b
+        for bank in normal
+        for a in bank.notices
+        for b in bank.notices
+    )
+    assert any(n.kind == "interest" for b in normal for n in b.notices)
+    assert any(
+        p < 1 for syn in extreme for series in syn.prices.values() for p in series.values()
+    )
+
+
 def test_a_history_is_the_same_for_the_same_seed() -> None:
     assert to_case(history(11)) == to_case(history(11))
     assert to_case(history(11)) != to_case(history(12))
