@@ -46,9 +46,9 @@ The design below says how they are used anyway.
 
 | | Public cases | Private reconciliation |
 |---|---|---|
-| Where | `tests/engine/cases/` in the repository | A directory outside the repository, named by `DEPOTBUCH_PRIVATE_CORPUS` |
+| Where | `tests/engine/cases/` in the repository | A directory outside the repository, passed explicitly to its own session |
 | Content | Invented activities, prices and expected results, each with its arithmetic written out | Activities transcribed from real statements, and the results the provider states |
-| Runs in | `nox -s gate` and CI | Locally only; skipped when the variable is unset |
+| Runs in | `nox -s gate` and CI | Locally only, as `nox -s reconcile -- <corpus path>`; never in the gate or CI |
 | Proves | Each calculation rule, as proposal 0001 defines it | That the rules, applied to a real history, agree with the provider |
 
 A public case is shaped after a private one but invented: other amounts, dates and
@@ -124,7 +124,7 @@ reviewed its code and before it is merged.
 
 | # | Pull request | Rules (proposal 0001) | Done when |
 |---|---|---|---|
-| 1 | **Types and case harness.** `Money` (Decimal plus currency), asset, account and activity types (pydantic); the rounding policy; the TOML case loader and the private-corpus runner. | *Money and numbers* (arch. §8.6) | A case file loads into engine types and round-trips, including a foreign-currency asset with FX rates; floats are rejected; the private runner skips cleanly without the variable. The runner refuses a corpus directory that resolves to a path inside any worktree of the repository (`git worktree list`), before reading or writing anything. It names cases by their file name, which the owner keeps synthetic (`c01.toml`), and reports parse and validation errors by file, field and error kind, never with the input's text. Tests with captured stdout and stderr feed it a failing case, a malformed TOML file, a value that fails validation a corpus path inside the checkout and one inside a sibling worktree, and assert that no value from the case file, and no key the case defines (asset and account names, dates), appears in the output; the fixed field names of the format may. |
+| 1 | **Types and case harness.** `Money` (Decimal plus currency), asset, account and activity types (pydantic); the rounding policy; the TOML case loader and the private-corpus runner. | *Money and numbers* (arch. §8.6) | A case file loads into engine types and round-trips, including a foreign-currency asset with FX rates; floats are rejected; `nox -s reconcile` refuses to run without a corpus path, and `nox -s gate` doesn't pass one to any test. The runner refuses a corpus directory that resolves to a path inside any worktree of the repository (`git worktree list`), before reading or writing anything. It names cases by their file name, which the owner keeps synthetic (`c01.toml`), and reports parse and validation errors by file, field and error kind, never with the input's text. Tests with captured stdout and stderr feed it a failing case, a malformed TOML file, a value that fails validation a corpus path inside the checkout and one inside a sibling worktree, and assert that no value from the case file, and no key the case defines (asset and account names, dates), appears in the output; the fixed field names of the format may. |
 | 2 | **Holdings and FIFO lots.** Buys, sales, deliveries in and out, splits; fees in the cost basis; nominal-quoted bonds; invested capital and realized gain. | *Lots*, *Edge cases* (splits) | Public cases for partial sales across lots, a split, a delivery with stated cost basis, and the same asset in two accounts where a sale from one must not consume the older lot in the other; a USD buy and sale, once with the broker's rate on each activity and once without, so that cost and realized gain use the broker's rate when given and the ECB rate otherwise; property: lots sum to holdings. Private: units match every holdings statement, and for both sales the pre-tax FIFO gain, less the partial exemption and less any Vorabpauschale already assessed on the units sold (taken from the notices), matches the bank's taxable gain within the tolerance set under *Open questions*. That comparison lives in the private harness; the engine's realized gain stays the after-tax figure 0001 defines. |
 | 3 | **Valuation per asset type.** Security units × close converted to EUR (divided by the ECB rate), a bond as nominal × price in percent, cash balances, Festgeld accrual, carry-forward over gaps. | *Valuation by asset type* (arch. §8.2) | Public cases for each asset type; an FX case whose expected value only holds if the rate is divided, not multiplied; Festgeld cases for each supported day-count convention (actual/365, actual/360 and 30E/360, the European 30/360 used by German banks, held in the account's Festgeld terms along with whether interest accrues on the start day and the maturity day), including a deposit across 29 February, one that starts or ends on the 31st of a month, and the value on the maturity day itself; a carry-forward case valued on a day after the last close and the last FX rate, which must use those and never zero. Private: the value of each position in each holdings statement, from the statement's own price, to the cent. |
 | 4 | **Income and taxes.** Dividends split across lots by the day before the ex-date; withheld tax; tax attribution to the asset or the provider; Vorabpauschale. | *Lots* (dividends), *Taxes are attributed where they arise* | Public cases for a dividend after a partial sale, one paid after a full sale (to the lots held before the ex-date, and without an ex-date to the position's last held day), one without an ex-date while units are held (marked approximate), a year-end tax total on the provider; private: net income per distribution equals the notice. |
@@ -199,19 +199,21 @@ No new untrusted input enters the product: the engine reads typed values from th
 harness. The private corpus is new sensitive data on the developer's machine, holding
 account numbers, names and the full transaction history:
 
-- It lives outside the repository and is named only by an environment variable. The runner
+- It lives outside the repository. The runner
   refuses a corpus path inside any worktree of the repository, so neither the corpus nor its
   report can be committed by accident.
 - The corpus is exposed only to trusted code: code the owner wrote, code written in the
   owner's session by an agent that already has read access to the corpus (running its code
   exposes nothing that agent cannot already read), or code the owner has reviewed. Anyone
   else's code, such as a contributor's branch, runs against it only after the owner's
-  review, since the code under test sees the real values and could print or send them. Where the platform allows, the run has no network access
-  (`unshare -rn` on Linux).
-- CI never sets the variable; the runner skips without it.
+  review, since the code under test sees the real values and could print or send them.
+  Where the platform allows, the run has no network access (`unshare -rn` on Linux).
+- The corpus path is never kept in an exported environment variable. It is passed on the
+  command line to its own session, `nox -s reconcile -- <path>`, which neither `nox -s gate`
+  nor CI runs, so an ordinary test run on any branch never learns where the corpus is.
 - The private runner prints only synthetic case file names, field names and pass or fail;
-  parse and validation errors name the file, field and error kind, never the input's text. Expected and
-  actual values, and the differences between them, go to a report file inside the corpus
+  parse and validation errors name the file, field and error kind, never the input's text.
+  Expected and actual values, and the differences between them, go to a report file inside the corpus
   directory, so a pasted test log or CI output carries no amounts.
 
 This PR adds the private corpus to the threat model (architecture §14 and

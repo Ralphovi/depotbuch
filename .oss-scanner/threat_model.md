@@ -54,10 +54,10 @@ PR number from the payload and posts a fixed comment. A change that adds an
   (for example through XML entity expansion in OFX).
 - The engine and adapters never import Django.
 - Real statement data never enters the repository, CI or a test log. The private test
-  corpus (proposal 0002) lives outside the repository, is named only by
-  `DEPOTBUCH_PRIVATE_CORPUS` (a path inside any worktree of the repository is refused, and it is never run against
-  unreviewed code), and its runner prints
-  nothing taken from a case file.
+  corpus (proposal 0002) lives outside the repository and is passed only to its own
+  session, `nox -s reconcile -- <path>`, never to the gate or CI. The runner refuses a path
+  inside any worktree of the repository, runs only on trusted code, and prints nothing taken
+  from a case file.
 
 ## Components that matter most
 
