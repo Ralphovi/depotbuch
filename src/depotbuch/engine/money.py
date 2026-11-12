@@ -13,6 +13,7 @@ Two kinds of number follow different rules:
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
 from fractions import Fraction
 from typing import Annotated
@@ -62,6 +63,19 @@ def round_cent(amount: Decimal) -> Decimal:
 
 book = round_cent
 """Book an amount: to the cent, half up, as German banks round."""
+
+
+_WIDE = Context(prec=80)
+"""Wide enough that a sum of bounded amounts or units (`MAX_BOOKED`) is exact."""
+
+
+def exact_sum(values: Iterable[Decimal]) -> Decimal:
+    """The exact sum of bounded amounts or units, which the 28-digit context could round
+    once a total needs more digits than any of its parts."""
+    total = Decimal(0)
+    for v in values:
+        total = _WIDE.add(total, v)
+    return total
 
 
 def book_exact(value: Fraction) -> Decimal:
@@ -134,14 +148,14 @@ def allocate(amount: Decimal, weights: list[Decimal]) -> list[Decimal]:
     """
     if any(w < 0 for w in weights):
         raise ValueError("weights can't be negative")
-    total = sum(weights, Decimal(0))
+    total = exact_sum(weights)
     if total <= 0:
         raise ValueError("an allocation needs a positive weight")
     parts: list[Decimal] = []
     booked = Decimal(0)
     cumulative = Decimal(0)
     for w in weights:
-        cumulative += w
+        cumulative = _WIDE.add(cumulative, w)
         upto = amount if cumulative == total else share(amount, cumulative, total)
         parts.append(upto - booked)
         booked = upto

@@ -30,7 +30,7 @@ from decimal import Decimal
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.model import Activity, ActivityType
-from depotbuch.engine.money import multiply_units, share
+from depotbuch.engine.money import exact_sum, multiply_units, share
 
 _ZERO = Decimal(0)
 
@@ -104,12 +104,12 @@ class LotBook:
         ]
 
     def units(self, *, asset: str, account: str | None = None) -> Decimal:
-        return sum((lot.units for lot in self.open_lots(asset=asset, account=account)), _ZERO)
+        return exact_sum(lot.units for lot in self.open_lots(asset=asset, account=account))
 
     def invested_capital(
         self, *, asset: str | None = None, account: str | None = None
     ) -> Decimal:
-        return sum((lot.cost for lot in self.open_lots(asset=asset, account=account)), _ZERO)
+        return exact_sum(lot.cost for lot in self.open_lots(asset=asset, account=account))
 
     def realizations(
         self,
@@ -135,7 +135,7 @@ class LotBook:
         since: dt.date | None = None,
     ) -> Decimal:
         rs = self.realizations(asset=asset, account=account, since=since)
-        return sum((r.gain for r in rs), _ZERO)
+        return exact_sum(r.gain for r in rs)
 
 
 _TRADES = {ActivityType.BUY, ActivityType.SELL, ActivityType.TRANSFER, ActivityType.SPLIT}
@@ -213,7 +213,7 @@ def _close(
     realizes nothing. `position` is the activity's place in the input."""
     asset = a.asset or ""  # the caller skips activities without an asset
     total = -a.units
-    held = sum((lot.units for lot in queue), _ZERO)
+    held = exact_sum(lot.units for lot in queue)
     if held < total:
         raise Oversold(a.date, total - held)
     is_sale = a.type is ActivityType.SELL

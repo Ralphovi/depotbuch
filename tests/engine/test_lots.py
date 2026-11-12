@@ -228,3 +228,8 @@ def test_units_held_ignores_other_positions() -> None:
     other_account = sell(2, "-9", "100", "B")
     acts = [buy(0, "5", "-500"), other_asset, other_account]
     assert units_held(acts, END, asset="X1", account="A") == 5
+
+
+def test_a_holding_sums_its_lots_exactly() -> None:
+    lots = [buy(i, "999999999999999.999999999999", "-1.00") for i in range(11)]
+    assert build_lots(lots, END).units(asset="X1") == Decimal("10999999999999999.999999999989")
