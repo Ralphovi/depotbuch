@@ -79,6 +79,8 @@ def allocate(amount: Decimal, weights: list[Decimal]) -> list[Decimal]:
     if any(w < 0 for w in weights):
         raise ValueError("weights can't be negative")
     total = sum(weights, Decimal(0))
+    if total <= 0:
+        raise ValueError("an allocation needs a positive weight")
     parts: list[Decimal] = []
     booked = Decimal(0)
     cumulative = Decimal(0)

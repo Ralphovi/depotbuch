@@ -97,6 +97,12 @@ def test_allocation_is_always_exact_and_in_cents(
     )
 
 
+@pytest.mark.parametrize("weights", [[], ["0", "0"], ["1", "-1"]])
+def test_allocation_without_a_positive_weight_is_refused(weights: list[str]) -> None:
+    with pytest.raises(ValueError, match="weight"):
+        allocate(Decimal("1.00"), [Decimal(w) for w in weights])
+
+
 def test_share_of_nothing_is_refused() -> None:
     with pytest.raises(ValueError, match="nothing"):
         share(Decimal(1), Decimal(1), Decimal(0))
