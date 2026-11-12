@@ -19,6 +19,11 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict
 
 CENT = Decimal("0.01")
+MAX_BOOKED = Decimal(10) ** 15
+"""Booked amounts stay below 10^15 and FX rates within `MIN_RATE`..`MAX_RATE`, so every
+booking, conversion and share fits the default 28-digit decimal context exactly to the cent
+(ADR-0013). Real amounts and ECB rates are orders of magnitude inside both."""
+MIN_RATE, MAX_RATE = Decimal("1E-6"), Decimal("1E6")
 _CURRENCY = re.compile(r"[A-Z]{3}")
 
 
@@ -54,6 +59,11 @@ def round_cent(amount: Decimal) -> Decimal:
 
 book = round_cent
 """Book an amount: to the cent, half up, as German banks round."""
+
+
+def is_rate(rate: Decimal) -> bool:
+    """True if `rate` is an FX rate depotbuch can convert with (see `MAX_BOOKED`)."""
+    return MIN_RATE <= rate <= MAX_RATE
 
 
 def is_booked(amount: Decimal) -> bool:

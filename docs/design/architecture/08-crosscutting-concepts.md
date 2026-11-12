@@ -171,7 +171,8 @@ different rules (ADR-0013, Proposed):
 
 - **Booked amounts** (cash, fees, taxes, a lot's cost, the share of cost or proceeds a sale
   assigns to a lot, an amount converted to EUR) are in cents. An activity's booked fields
-  must be whole cents; an amount the engine books is rounded half up when it comes into
+  must be whole cents below 10^15 (and FX rates between 10^-6 and 10^6, so every booking
+  fits the default decimal context); an amount the engine books is rounded half up when it comes into
   existence; a booked amount is split in cents whose parts add up to it exactly.
 - **Analytical figures** (values, return factors, TTWROR, IZF) keep full precision and are
   rounded only for display and comparison. Unit counts, prices and FX rates keep the digits

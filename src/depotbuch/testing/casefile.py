@@ -54,7 +54,7 @@ from depotbuch.engine.fx import FxRates
 from depotbuch.engine.holdings import units_held
 from depotbuch.engine.lots import LotBook, Realization, build_lots
 from depotbuch.engine.model import Activity, ActivityType, Asset, AssetKind
-from depotbuch.engine.money import Currency, Dec, round_cent
+from depotbuch.engine.money import Currency, Dec, is_rate, round_cent
 
 DEFAULT_ACCOUNT = "depot"
 
@@ -133,8 +133,8 @@ class Case(BaseModel):
     @model_validator(mode="after")
     def _positive_rates(self) -> Case:
         for rates in self.fx.values():
-            if any(r <= 0 for r in rates.values()):
-                raise ValueError("FX rates must be positive")
+            if not all(is_rate(r) for r in rates.values()):
+                raise ValueError("FX rates must be between 0.000001 and 1000000")
         return self
 
     @model_validator(mode="before")

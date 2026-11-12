@@ -164,7 +164,7 @@ def test_fx_rates_carry_forward_and_never_backward() -> None:
     assert rates.book_eur(Decimal(100), "USD", date(2024, 6, 7), Decimal("3")) == Decimal(
         "33.33"
     )
-    with pytest.raises(ValueError, match="positive"):
+    with pytest.raises(ValueError, match="between"):
         FxRates({"USD": {date(2024, 6, 7): Decimal(0)}})
 
 

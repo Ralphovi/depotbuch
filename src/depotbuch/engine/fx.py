@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 
-from depotbuch.engine.money import book
+from depotbuch.engine.money import book, is_rate
 
 EUR = "EUR"
 
@@ -30,8 +30,8 @@ class FxRates:
         self._dates: dict[str, list[date]] = {}
         self._rates: dict[str, dict[date, Decimal]] = {}
         for currency, series in (rates or {}).items():
-            if any(r <= 0 for r in series.values()):
-                raise ValueError("FX rates must be positive")
+            if not all(is_rate(r) for r in series.values()):
+                raise ValueError("FX rates must be between 0.000001 and 1000000")
             self._rates[currency] = dict(series)
             self._dates[currency] = sorted(series)
 

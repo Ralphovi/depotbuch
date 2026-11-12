@@ -84,3 +84,24 @@ def test_validation_errors_never_repeat_values() -> None:
     messages = " ".join(e["msg"] for e in err.value.errors())
     assert "98765" not in messages
     assert "4321" not in messages
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"cash": "-1000000000000000.00"},
+        {"cash": "-1E26"},
+        {"fx_rate": "0.0000001", "currency": "USD"},
+        {"fx_rate": "1000001", "currency": "USD"},
+    ],
+)
+def test_amounts_and_rates_outside_the_decimal_context_are_rejected(
+    fields: dict[str, str],
+) -> None:
+    """Bounds that keep every booking exact in the default 28-digit context (ADR-0013)."""
+    with pytest.raises(ValidationError):
+        act(**{"type": "buy", "asset": "X1", "units": "1", "cash": "-1.00", **fields})
+
+
+def test_the_largest_booked_amount_is_accepted() -> None:
+    assert act(type="buy", asset="X1", units="1", cash="-999999999999999.99").cash < 0
