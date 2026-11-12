@@ -159,7 +159,7 @@ Securities are valued through yfinance, the one free source that covers German l
 
 | Asset type | Value on a day | Source |
 | --- | --- | --- |
-| Security | Units × close × FX | Price provider; ECB for FX |
+| Security | Units × close ÷ ECB rate (foreign currency per EUR) | Price provider; ECB for FX |
 | Tagesgeld | Account balance | Bank statements |
 | Verrechnungskonto (broker cash) | Account balance | Bank statements; the Consorsbank and Scalable plugins read them today |
 | Festgeld | Principal + interest accrued daily at the contract rate | Contract terms, then the maturity statement |

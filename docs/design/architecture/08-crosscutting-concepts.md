@@ -85,7 +85,7 @@ provider, account, asset class or single asset.
 
 | Asset type | Value on a day |
 |------------|----------------|
-| Security | Units × close × FX. Closes are adjusted for splits but not for dividends, which are booked as activities. |
+| Security | Units × close, divided by the ECB rate for a foreign currency (quoted as units of that currency per EUR). Closes are adjusted for splits but not for dividends, which are booked as activities. |
 | Tagesgeld, Verrechnungskonto | Account balance from bank statements. |
 | Festgeld | Principal plus interest accrued daily at the contract rate, until the maturity statement. |
 | Pension contract (step 2) | Last statement value held flat until the next; fund units × fund price where the contract reports units. |
