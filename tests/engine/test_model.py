@@ -53,6 +53,8 @@ def test_valid_activities(kw: dict[str, Any]) -> None:
         {"type": "transfer", "asset": "X1", "units": "3", "cash": "-1"},  # transfer with cash
         {"type": "split", "asset": "X1"},  # split without ratio
         {"type": "split", "asset": "X1", "ratio": "2", "cash": "-1"},  # split with cash
+        {"type": "dividend", "asset": "X1", "cash": "-1"},  # negative income
+        {"type": "interest", "cash": "-0.10"},
         {"type": "deposit", "cash": "-1"},
         {"type": "withdrawal", "cash": "1"},
         {"type": "fee", "cash": "2"},

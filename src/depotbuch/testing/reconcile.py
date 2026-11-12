@@ -30,7 +30,15 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from depotbuch.engine.model import Activity
-from depotbuch.testing.casefile import AssetSpec, Case, Expect, Slice, check, load_case
+from depotbuch.testing.casefile import (
+    METRICS,
+    AssetSpec,
+    Case,
+    Expect,
+    Slice,
+    check,
+    load_case,
+)
 
 REPORT = "reconcile-report.txt"
 _HERE = Path(__file__).resolve()
@@ -96,7 +104,7 @@ def _worktree(path: Path) -> Path | None:
         return Path(r.stdout.strip()).resolve()
     if "not a git repository" in r.stderr:
         # A .git marker that git can't read is a broken repository, not "outside any".
-        if any((p / ".git").exists() for p in (probe, *probe.parents)):
+        if any(os.path.lexists(p / ".git") for p in (probe, *probe.parents)):
             raise LocationUnknown
         return None
     raise LocationUnknown
@@ -163,9 +171,27 @@ def unsafe_location(path: Path, own_repo: Path | None) -> bool:
 
 
 def _safe_loc(loc: tuple[int | str, ...]) -> str:
-    return ".".join(
-        f"[{p}]" if isinstance(p, int) else (p if p in _FIELDS else "<key>") for p in loc
-    ).replace(".[", "[")
+    """A validation error's location, with every key the case defines redacted.
+
+    Redaction is by position, not by name: the key under `assets`, `prices` or `fx`, and the
+    date under a price or rate series, are always `<key>`, even if one happens to equal a
+    field name. A metric name is shown only if it is one the harness knows.
+    """
+    parts: list[str] = []
+    for n, p in enumerate(loc):
+        parent = loc[n - 1] if n >= 1 else None
+        grandparent = loc[n - 2] if n >= 2 else None  # noqa: PLR2004
+        if isinstance(p, int):
+            parts.append(f"[{p}]")
+            continue
+        if parent in {"assets", "prices", "fx"} or grandparent in {"prices", "fx"}:
+            shown = "<key>"
+        elif parent in {"metrics", "parqet"}:
+            shown = p if p in METRICS else "<key>"
+        else:
+            shown = p if p in _FIELDS else "<key>"
+        parts.append(("." if parts else "") + shown)
+    return "".join(parts)
 
 
 def _refusal(corpus: Path, report: Path, own_repo: Path | None) -> str | None:

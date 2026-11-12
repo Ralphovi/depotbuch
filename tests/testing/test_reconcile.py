@@ -119,6 +119,17 @@ def test_failures_print_nothing_from_the_case(
     assert "99.5" in (c / REPORT).read_text(encoding="utf-8")
 
 
+def test_keys_that_look_like_field_names_are_still_redacted(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    text = GOOD.replace("{units}", "17.123") + '\n[assets.account]\ncurrency = "eur"\n'
+    c = corpus(tmp_path / "c", **{"c01.toml": text})
+    assert run(str(c), own_repo=None) == 1
+    out = capsys.readouterr().out
+    assert "assets.<key>.currency" in out
+    assert "assets.account" not in out
+
+
 def test_refuses_without_a_path(capsys: pytest.CaptureFixture[str]) -> None:
     assert main([]) == 2
     assert "usage" in capsys.readouterr().out
@@ -149,6 +160,13 @@ def test_refuses_under_a_broken_repository(tmp_path: Path) -> None:
     other = make_repo(tmp_path / "other")
     (other / ".git" / "HEAD").unlink()
     assert run(str(corpus(other / "private")), own_repo=None) == 2
+
+
+def test_refuses_under_a_dangling_git_symlink(tmp_path: Path) -> None:
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    (outer / ".git").symlink_to(tmp_path / "unmounted" / ".git")
+    assert run(str(corpus(outer / "private")), own_repo=None) == 2
 
 
 def test_refuses_a_symlinked_report(tmp_path: Path) -> None:

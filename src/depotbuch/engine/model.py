@@ -152,6 +152,8 @@ class Activity(BaseModel):
             raise ValueError("a deposit receives cash (cash > 0)")
         if t is ActivityType.WITHDRAWAL and self.cash >= _ZERO:
             raise ValueError("a withdrawal pays cash (cash < 0)")
+        if t in {ActivityType.DIVIDEND, ActivityType.INTEREST} and self.cash < _ZERO:
+            raise ValueError("income is credited (cash >= 0)")
         if t is ActivityType.VORABPAUSCHALE and (self.amount is None or self.cash > _ZERO):
             raise ValueError("a Vorabpauschale needs its amount and at most pays tax")
         return self
