@@ -119,8 +119,8 @@ only; the importers (M2, M5) produce engine types directly.
 
 Each row is one issue, one branch and one pull request. Every PR adds public cases for the
 rules it implements and runs the private reconciliation for those rules: before it is posted when the owner or
-the owner's agent wrote it, and for a contributor's PR after the owner has reviewed its code
-and before it is merged.
+an agent in the owner's session wrote it, and for anyone else's PR after the owner has
+reviewed its code and before it is merged.
 
 | # | Pull request | Rules (proposal 0001) | Done when |
 |---|---|---|---|
@@ -130,7 +130,7 @@ and before it is merged.
 | 4 | **Income and taxes.** Dividends split across lots by the day before the ex-date; withheld tax; tax attribution to the asset or the provider; Vorabpauschale. | *Lots* (dividends), *Taxes are attributed where they arise* | Public cases for a dividend after a partial sale, one paid after a full sale (to the lots held before the ex-date, and without an ex-date to the position's last held day), one without an ex-date while units are held (marked approximate), a year-end tax total on the provider; private: net income per distribution equals the notice. |
 | 5 | **Trade-to-cash matching.** Pairing each investment activity with its cash line on the Verrechnungskonto by provider, amount and a booking date up to 3 business days later; listing what stays unmatched. | *No double counting* | Public cases for a match on the third business day, a near-miss on the fourth, two trades of equal amount, and an unmatched line on each side; property: no cash line is counted twice. |
 | 6 | **Flows: the slice rule.** Classifying every booking into B, S, R or no flow for a given slice. | *Flows: the slice rule* | One public case per row of the classification table in 0001, for each slice the row names. |
-| 7 | **TTWROR and absolute gain.** | *TTWROR*, *Absolute gain* | The hand-computed case in 0001 and the dividend and fee examples there; property: for any split of a range into consecutive subranges, 1 + TTWROR of the range equals the product of 1 + TTWROR of the subranges. |
+| 7 | **TTWROR and absolute gain.** | *TTWROR*, *Absolute gain* | The hand-computed case in 0001 and the dividend and fee examples there; property: for any split of a range into consecutive subranges, 1 + TTWROR of the range equals the product of 1 + TTWROR of the subranges, where a subrange with no TTWROR (nothing held, no inflows) counts as a factor of 1. |
 | 8 | **IZF.** Root finding on the daily flows, with the start and end value as flows. | *IZF* | Public cases with a known closed-form rate; property: NPV at the found rate is zero within 1e-9 of the flows' magnitude; no-solution and multiple-root cases are reported, not guessed. |
 | 9 | **Parqet-compatible mode.** | *Parqet-compatible mode* | Every public case runs in both modes. A case states a separate `--parqet` expectation only where the result differs, and otherwise must give the same result in both. The differing cases include a buy and a sale with fees and a sale with withheld tax, for a single security and for its provider. |
 
@@ -202,9 +202,11 @@ account numbers, names and the full transaction history:
 - It lives outside the repository and is named only by an environment variable. The runner
   refuses a corpus path inside any worktree of the repository, so neither the corpus nor its
   report can be committed by accident.
-- The corpus is exposed only to code the owner trusts: branches the owner or the owner's
-  agent wrote, or that have been reviewed. It is never run against code the owner hasn't
-  reviewed, since the code under test sees the real values and could print or send them. Where the platform allows, the run has no network access
+- The corpus is exposed only to trusted code: code the owner wrote, code written in the
+  owner's session by an agent that already has read access to the corpus (running its code
+  exposes nothing that agent cannot already read), or code the owner has reviewed. Anyone
+  else's code, such as a contributor's branch, runs against it only after the owner's
+  review, since the code under test sees the real values and could print or send them. Where the platform allows, the run has no network access
   (`unshare -rn` on Linux).
 - CI never sets the variable; the runner skips without it.
 - The private runner prints only synthetic case file names, field names and pass or fail;
