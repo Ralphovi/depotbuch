@@ -192,8 +192,9 @@ class Activity(BaseModel):
             "income is credited (cash >= 0)",
         )
         yield (
-            t is ActivityType.VORABPAUSCHALE and (self.amount is None or cash > z),
-            "a Vorabpauschale needs its amount and at most pays tax",
+            t is ActivityType.VORABPAUSCHALE
+            and (self.amount is None or self.amount < z or cash > z),
+            "a Vorabpauschale needs its amount (>= 0) and at most pays tax",
         )
 
     @model_validator(mode="after")

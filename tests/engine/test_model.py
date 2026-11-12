@@ -119,3 +119,8 @@ def test_units_outside_the_decimal_context_are_rejected(units: str) -> None:
 def test_split_ratios_outside_the_bounds_are_rejected(ratio: str) -> None:
     with pytest.raises(ValidationError, match="ratio"):
         act(type="split", asset="X1", ratio=ratio)
+
+
+def test_a_negative_vorabpauschale_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="Vorabpauschale"):
+        act(type="vorabpauschale", asset="X1", amount="-1.00")
