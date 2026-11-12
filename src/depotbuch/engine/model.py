@@ -26,6 +26,7 @@ a value, so a failed private case logs no amounts.
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterator
 from decimal import Decimal
 from enum import StrEnum
 from typing import Self
@@ -127,33 +128,51 @@ class Activity(BaseModel):
     ex_date: dt.date | None = None
     fitid: str | None = None
 
+    def _violations(self) -> Iterator[tuple[bool, str]]:
+        """(broken, message) for every rule; messages never repeat a value."""
+        t, units, cash, z = self.type, self.units, self.cash, _ZERO
+        yield t in _NEEDS_ASSET and not self.asset, "this activity type needs an asset"
+        yield t in _NO_UNITS and units != z, "this activity type carries no units"
+        yield (
+            self.cost_basis is not None
+            and (t is not ActivityType.TRANSFER or units <= z or self.cost_basis < z),
+            "a cost basis belongs to a delivery in and can't be negative",
+        )
+        yield self.fx_rate is not None and self.fx_rate <= z, "fx_rate must be positive"
+        yield (
+            t is ActivityType.BUY and (units <= z or cash > z),
+            "a buy adds units and pays cash (units > 0, cash <= 0)",
+        )
+        yield (
+            t is ActivityType.SELL and (units >= z or cash < z),
+            "a sale removes units and receives cash (units < 0, cash >= 0)",
+        )
+        yield (
+            t is ActivityType.TRANSFER and (units == z or cash != z),
+            "a transfer moves units and no cash",
+        )
+        yield (
+            t is ActivityType.SPLIT and (self.ratio is None or self.ratio <= z or cash != z),
+            "a split needs a positive ratio and moves no cash",
+        )
+        yield (
+            t in {ActivityType.EXPENSE, ActivityType.FEE} and cash > z,
+            "an expense or fee pays cash (cash <= 0)",
+        )
+        yield t is ActivityType.DEPOSIT and cash <= z, "a deposit receives cash (cash > 0)"
+        yield t is ActivityType.WITHDRAWAL and cash >= z, "a withdrawal pays cash (cash < 0)"
+        yield (
+            t in {ActivityType.DIVIDEND, ActivityType.INTEREST} and cash < z,
+            "income is credited (cash >= 0)",
+        )
+        yield (
+            t is ActivityType.VORABPAUSCHALE and (self.amount is None or cash > z),
+            "a Vorabpauschale needs its amount and at most pays tax",
+        )
+
     @model_validator(mode="after")
     def _check_signs(self) -> Self:
-        t = self.type
-        if t in _NEEDS_ASSET and not self.asset:
-            raise ValueError("this activity type needs an asset")
-        if t in _NO_UNITS and self.units != _ZERO:
-            raise ValueError("this activity type carries no units")
-        if self.fx_rate is not None and self.fx_rate <= _ZERO:
-            raise ValueError("fx_rate must be positive")
-        if t is ActivityType.BUY and (self.units <= _ZERO or self.cash > _ZERO):
-            raise ValueError("a buy adds units and pays cash (units > 0, cash <= 0)")
-        if t is ActivityType.SELL and (self.units >= _ZERO or self.cash < _ZERO):
-            raise ValueError("a sale removes units and receives cash (units < 0, cash >= 0)")
-        if t is ActivityType.TRANSFER and (self.units == _ZERO or self.cash != _ZERO):
-            raise ValueError("a transfer moves units and no cash")
-        if t is ActivityType.SPLIT and (
-            self.ratio is None or self.ratio <= _ZERO or self.cash != _ZERO
-        ):
-            raise ValueError("a split needs a positive ratio and moves no cash")
-        if t in {ActivityType.EXPENSE, ActivityType.FEE} and self.cash > _ZERO:
-            raise ValueError("an expense or fee pays cash (cash <= 0)")
-        if t is ActivityType.DEPOSIT and self.cash <= _ZERO:
-            raise ValueError("a deposit receives cash (cash > 0)")
-        if t is ActivityType.WITHDRAWAL and self.cash >= _ZERO:
-            raise ValueError("a withdrawal pays cash (cash < 0)")
-        if t in {ActivityType.DIVIDEND, ActivityType.INTEREST} and self.cash < _ZERO:
-            raise ValueError("income is credited (cash >= 0)")
-        if t is ActivityType.VORABPAUSCHALE and (self.amount is None or self.cash > _ZERO):
-            raise ValueError("a Vorabpauschale needs its amount and at most pays tax")
+        for broken, message in self._violations():
+            if broken:
+                raise ValueError(message)
         return self
