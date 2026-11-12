@@ -89,6 +89,22 @@ def test_invalid_cases_are_rejected(tmp_path: Path, change: tuple[str, str]) -> 
         load_case(write(tmp_path, text))
 
 
+def test_a_tolerance_applies_to_money_only(tmp_path: Path) -> None:
+    # 185.00 USD at the broker's 1.0950 is 168.95 EUR: within 0.05 of 168.92, so the money
+    # metric passes, while 2 units never pass for 2.01, whatever the tolerance.
+    text = USD_CASE.replace(
+        'units = "2"\nparqet = { units = "2" }',
+        'units = "2.01"\ninvested_capital = "168.92"\ntolerance = "0.05"',
+    )
+    results = {(r.metric, r.mode): r.ok for r in check(load_case(write(tmp_path, text)))}
+    assert results == {
+        ("units", "default"): False,
+        ("units", "parqet"): False,
+        ("invested_capital", "default"): True,
+        ("invested_capital", "parqet"): True,
+    }
+
+
 def test_provider_slices_are_not_supported_yet(tmp_path: Path) -> None:
     old = 'slice = { asset = "U1" }'
     text = USD_CASE.replace(old, 'slice = { asset = "U1", provider = "p" }')

@@ -282,5 +282,8 @@ def check(case: Case) -> list[Result]:
                 got = METRICS[name](case, e, parqet)
                 if name in MONEY:
                     got = round_cent(got)
-                results.append(Result(i, name, mode, want, got, abs(got - want) <= allowed))
+                    ok = abs(got - want) <= allowed
+                else:
+                    ok = got == want  # units are exact; a tolerance is in EUR
+                results.append(Result(i, name, mode, want, got, ok))
     return results
