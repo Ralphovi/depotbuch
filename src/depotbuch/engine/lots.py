@@ -79,6 +79,9 @@ class Realization:
     taxes: Decimal
     """In EUR: this part's share of the tax withheld on the sale."""
     lot_opened: dt.date
+    sale: int
+    """The sale's position among the activities `build_lots` was given, which tells two
+    sales on one day apart."""
 
     @property
     def gain(self) -> Decimal:
@@ -158,7 +161,7 @@ def build_lots(
     rates = fx or FxRates()
     queues: dict[tuple[str, str], deque[Lot]] = defaultdict(deque)
     realized: list[Realization] = []
-    for _, a in sorted(enumerate(activities), key=_order):
+    for i, a in sorted(enumerate(activities), key=_order):
         if a.date > as_of or a.type not in _TRADES or a.asset is None:
             continue
         key = (a.account, a.asset)
@@ -168,7 +171,7 @@ def build_lots(
         elif a.units > _ZERO:
             _insert(queues[key], _open(a, rates, costs=costs))
         else:
-            realized.extend(_close(queues[key], a, rates, costs=costs))
+            realized.extend(_close(queues[key], a, i, rates, costs=costs))
     lots = [lot for q in queues.values() for lot in q]
     return LotBook(lots=lots, realized=realized)
 
@@ -201,9 +204,11 @@ def _insert(queue: deque[Lot], lot: Lot) -> None:
     queue.insert(i, lot)
 
 
-def _close(queue: deque[Lot], a: Activity, rates: FxRates, *, costs: bool) -> list[Realization]:
+def _close(
+    queue: deque[Lot], a: Activity, position: int, rates: FxRates, *, costs: bool
+) -> list[Realization]:
     """Close `-a.units` units FIFO. A sale realizes its cash pro rata; a delivery out
-    realizes nothing."""
+    realizes nothing. `position` is the activity's place in the input."""
     asset = a.asset or ""  # the caller skips activities without an asset
     total = -a.units
     held = sum((lot.units for lot in queue), _ZERO)
@@ -233,5 +238,9 @@ def _close(queue: deque[Lot], a: Activity, rates: FxRates, *, costs: bool) -> li
         part, tax = proceeds_upto - proceeds_booked, taxes_upto - taxes_booked
         proceeds_booked, taxes_booked = proceeds_upto, taxes_upto
         if is_sale:
-            out.append(Realization(a.date, a.account, asset, take, part, cost, tax, lot.opened))
+            out.append(
+                Realization(
+                    a.date, a.account, asset, take, part, cost, tax, lot.opened, position
+                )
+            )
     return out

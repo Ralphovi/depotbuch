@@ -57,8 +57,13 @@ book = round_cent
 
 
 def is_booked(amount: Decimal) -> bool:
-    """True if `amount` is a whole number of cents."""
-    return amount == amount.quantize(CENT)
+    """True if `amount` is a whole number of cents. Read from its digits, so no decimal
+    context limits it: a huge amount is checked as reliably as a small one."""
+    _, digits, exponent = amount.as_tuple()
+    if not isinstance(exponent, int):  # NaN or infinity
+        return False
+    below_cent = -2 - exponent
+    return below_cent <= 0 or not any(digits[-below_cent:])
 
 
 def share(amount: Decimal, part: Decimal, whole: Decimal) -> Decimal:

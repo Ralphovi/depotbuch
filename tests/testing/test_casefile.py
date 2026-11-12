@@ -299,3 +299,40 @@ taxable_gain = "0.06"
 """
     results = check(load_case(write(tmp_path, text)))
     assert all(r.ok for r in results), results
+
+
+def test_two_sales_on_one_day_are_exempted_separately(tmp_path: Path) -> None:
+    """Two lots of 1 unit at 1.00, sold one by one on the same day for 1.01 and 1.03: the
+    gains 0.01 and 0.03 have exemptions 0.00 and 0.01 (0.003 and 0.009 rounded half up), so
+    taxable 0.04 - 0.01 = 0.03. Merged into one sale at 1.02 per unit, each lot would gain
+    0.02 with an exemption of 0.01, giving 0.02."""
+    text = """
+name = "same-day-sales"
+rule = "private taxable_gain"
+[assets.F1]
+partial_exemption = "30"
+[[activities]]
+date = 2023-01-02
+type = "buy"
+asset = "F1"
+units = "2"
+cash = "-2.00"
+[[activities]]
+date = 2023-06-01
+type = "sell"
+asset = "F1"
+units = "-1"
+cash = "1.01"
+[[activities]]
+date = 2023-06-01
+type = "sell"
+asset = "F1"
+units = "-1"
+cash = "1.03"
+[[expect]]
+as_of = 2023-06-30
+slice = { asset = "F1" }
+taxable_gain = "0.03"
+"""
+    results = check(load_case(write(tmp_path, text)))
+    assert all(r.ok for r in results), results

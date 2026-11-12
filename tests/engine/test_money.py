@@ -106,3 +106,22 @@ def test_allocation_without_a_positive_weight_is_refused(weights: list[str]) -> 
 def test_share_of_nothing_is_refused() -> None:
     with pytest.raises(ValueError, match="nothing"):
         share(Decimal(1), Decimal(1), Decimal(0))
+
+
+@pytest.mark.parametrize(
+    ("amount", "booked"),
+    [
+        ("1.10", True),
+        ("1.100000", True),
+        ("1.105", False),
+        ("1E26", True),
+        ("1E+40", True),
+        ("123456789012345678901234567890.01", True),
+        ("123456789012345678901234567890.001", False),
+        ("0E-10", True),
+        ("NaN", False),
+        ("Infinity", False),
+    ],
+)
+def test_is_booked_needs_no_decimal_context(amount: str, booked: bool) -> None:
+    assert is_booked(Decimal(amount)) is booked
