@@ -220,3 +220,11 @@ def test_a_split_result_with_trailing_zeros_is_within_the_bounds() -> None:
     )
     book = build_lots([buy(0, "1.234567890123", "-1.00"), split], END)
     assert book.units(asset="X1") == Decimal("2.469135780246")
+
+
+def test_units_held_ignores_other_positions() -> None:
+    """An oversold sale of another asset or in another account doesn't stop the count."""
+    other_asset = sell(1, "-1", "100").model_copy(update={"asset": "X2"})
+    other_account = sell(2, "-9", "100", "B")
+    acts = [buy(0, "5", "-500"), other_asset, other_account]
+    assert units_held(acts, END, asset="X1", account="A") == 5

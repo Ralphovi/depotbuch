@@ -19,6 +19,10 @@ def units_held(
 ) -> Decimal:
     """Units of `asset` held at the end of `as_of`, in one account or across all.
 
-    Splits apply; a sale of more than the account holds raises `Oversold`.
+    Splits apply; a sale of more than the account holds raises `Oversold`. Only the
+    asked-for asset and account are replayed, so other positions can't stop the count.
     """
-    return build_lots(activities, as_of, costs=False).units(asset=asset, account=account)
+    own = [
+        a for a in activities if a.asset == asset and (account is None or a.account == account)
+    ]
+    return build_lots(own, as_of, costs=False).units(asset=asset, account=account)
