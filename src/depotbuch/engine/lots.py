@@ -6,7 +6,8 @@ lot opens or closes: a trade at the broker's rate when its activity carries one,
 the ECB rate for its date.
 
 - A lot's cost is the cash paid for it, so purchase fees and any tax or accrued interest
-  paid with it are part of invested capital. A delivery in carries its stated cost basis.
+  paid with it are part of invested capital. A delivery in carries its stated cost basis
+  and, when given, its original acquisition date, which decides its place in FIFO order.
 - A sale's realized gain is its cash received (after fees and taxes) less the cost of the
   units it closed. A delivery out closes lots without realizing a gain.
 - A split multiplies the units of every open lot in its account by its ratio and leaves the
@@ -165,7 +166,7 @@ def build_lots(
             ratio = a.ratio if a.ratio is not None else Decimal(1)  # the model requires it
             queues[key] = deque(replace(lot, units=lot.units * ratio) for lot in queues[key])
         elif a.units > _ZERO:
-            queues[key].append(_open(a, rates, costs=costs))
+            _insert(queues[key], _open(a, rates, costs=costs))
         else:
             realized.extend(_close(queues[key], a, rates, costs=costs))
     lots = [lot for q in queues.values() for lot in q]
@@ -187,7 +188,17 @@ def _open(a: Activity, rates: FxRates, *, costs: bool) -> Lot:
         cost = a.cost_basis
     else:
         cost = _eur(a, -a.cash, rates)
-    return Lot(a.account, asset, a.date, a.units, cost, a.fitid)
+    opened = a.acquired if a.type is ActivityType.TRANSFER and a.acquired else a.date
+    return Lot(a.account, asset, opened, a.units, cost, a.fitid)
+
+
+def _insert(queue: deque[Lot], lot: Lot) -> None:
+    """Add `lot` in FIFO order: after every lot opened on or before its date. A buy always
+    goes last; a delivery with an earlier acquisition date goes where it belongs."""
+    i = len(queue)
+    while i > 0 and queue[i - 1].opened > lot.opened:
+        i -= 1
+    queue.insert(i, lot)
 
 
 def _close(queue: deque[Lot], a: Activity, rates: FxRates, *, costs: bool) -> list[Realization]:

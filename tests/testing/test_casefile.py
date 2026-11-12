@@ -197,3 +197,24 @@ def test_taxable_gain_deducts_the_vorabpauschale_of_the_units_sold(tmp_path: Pat
     account doesn't apply."""
     results = check(load_case(write(tmp_path, VP_CASE)))
     assert all(r.ok for r in results), results
+
+
+def test_vorabpauschale_is_spread_over_the_year_end_holding(tmp_path: Path) -> None:
+    """The notice is booked on 2023-02-15, after 5 units of lot 1 were sold on 2023-01-10.
+    It covers 2022, so it is spread over the 2022 year-end holding: weight 10 x 1 +
+    10 x 0.75 = 17.5, 19/17.5 per unit of lot 1. The June sale of 10 closes the other 5 of
+    lot 1 (500.00) and 5 of lot 2 (550.00): gain 1300.00 - 1050.00 = 250.00, Vorabpauschale
+    5 x 19/17.5 + 5 x 0.75 x 19/17.5 = 9.50, taxable (250.00 - 9.50) x 0.7 = 168.35.
+    (Spreading it over the holding on 2023-02-14 would give 13.30 and 165.69.)"""
+    text = (
+        VP_CASE.replace(
+            'date = 2023-01-01\ntype = "vorabpauschale"\nasset',
+            'date = 2023-02-15\ntype = "vorabpauschale"\nasset',
+        )
+        .replace('units = "-15"\ncash = "1800.00"', 'units = "-10"\ncash = "1300.00"')
+        .replace('taxable_gain = "164.55"', 'since = 2023-01-10\ntaxable_gain = "168.35"')
+        + '\n[[activities]]\ndate = 2023-01-10\ntype = "sell"\nasset = "F1"\n'
+        'units = "-5"\ncash = "600.00"\n'
+    )
+    results = check(load_case(write(tmp_path, text)))
+    assert all(r.ok for r in results), results

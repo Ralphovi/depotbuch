@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -247,10 +247,10 @@ def _vp_factor(opened: date, record: date) -> Decimal:
 
 def _vp_per_unit(case: Case, asset: str, account: str, vp: Activity) -> dict[date, Decimal]:
     """Per unit of a lot opened on each date: the notice's amount spread over the units held
-    when the year started (the end of the day before the record date), weighted by
-    `_vp_factor`."""
+    at the end of the year it covers, weighted by `_vp_factor`."""
     record = vp.ex_date or vp.date
-    held = build_lots(case.activities, record - timedelta(days=1), costs=False).open_lots(
+    year_end = date(record.year - 1, 12, 31)
+    held = build_lots(case.activities, year_end, costs=False).open_lots(
         asset=asset, account=account
     )
     weight = sum((lot.units * _vp_factor(lot.opened, record) for lot in held), Decimal(0))

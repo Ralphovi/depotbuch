@@ -57,6 +57,8 @@ def test_valid_activities(kw: dict[str, Any]) -> None:
         {"type": "buy", "asset": "X1", "units": "1", "cash": "-1.005"},  # a part cent
         {"type": "buy", "asset": "X1", "units": "1", "cash": "-1", "fees": "0.001"},
         {"type": "vorabpauschale", "asset": "X1", "amount": "5.975"},
+        {"type": "transfer", "asset": "X1", "units": "3", "acquired": "2025-01-01"},  # later
+        {"type": "buy", "asset": "X1", "units": "1", "cash": "-1", "acquired": "2020-01-01"},
         {"type": "split", "asset": "X1"},  # split without ratio
         {"type": "split", "asset": "X1", "ratio": "2", "cash": "-1"},  # split with cash
         {"type": "dividend", "asset": "X1", "cash": "-1"},  # negative income

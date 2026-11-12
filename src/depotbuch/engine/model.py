@@ -121,6 +121,9 @@ class Activity(BaseModel):
     """Tax withheld on this activity (positive) or refunded (negative)."""
     cost_basis: Dec | None = None
     """For a delivery in: the stated cost basis that stays with the lot, in EUR."""
+    acquired: dt.date | None = None
+    """For a delivery in: the original acquisition date (OFX DTPURCHASE), which keeps the
+    lot's place in FIFO order. Without it the delivery date is used."""
     ratio: Dec | None = None
     """For a split: new units per old unit."""
     amount: Dec | None = None
@@ -137,6 +140,11 @@ class Activity(BaseModel):
             self.cost_basis is not None
             and (t is not ActivityType.TRANSFER or units <= z or self.cost_basis < z),
             "a cost basis belongs to a delivery in and can't be negative",
+        )
+        yield (
+            self.acquired is not None
+            and (t is not ActivityType.TRANSFER or units <= z or self.acquired > self.date),
+            "an acquisition date belongs to a delivery in and can't be after it",
         )
         yield self.fx_rate is not None and self.fx_rate <= z, "fx_rate must be positive"
         yield (
