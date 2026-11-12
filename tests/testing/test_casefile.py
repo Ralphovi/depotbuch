@@ -115,3 +115,62 @@ def test_provider_slices_are_not_supported_yet(tmp_path: Path) -> None:
 def test_malformed_toml_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(tomllib.TOMLDecodeError):
         load_case(write(tmp_path, "name = \n"))
+
+
+VP_CASE = """
+name = "vp"
+rule = "private taxable_gain"
+
+[assets.F1]
+partial_exemption = "30"
+
+[[activities]]
+date = 2021-06-01
+type = "buy"
+asset = "F1"
+units = "10"
+cash = "-1000.00"
+
+[[activities]]
+date = 2022-04-15
+type = "buy"
+asset = "F1"
+units = "10"
+cash = "-1100.00"
+
+[[activities]]
+date = 2023-01-01
+type = "vorabpauschale"
+asset = "F1"
+amount = "19.00"
+
+[[activities]]
+date = 2023-01-01
+type = "vorabpauschale"
+account = "other"
+asset = "F1"
+amount = "500.00"
+
+[[activities]]
+date = 2023-06-01
+type = "sell"
+asset = "F1"
+units = "-15"
+cash = "1800.00"
+
+[[expect]]
+as_of = 2023-06-30
+slice = { asset = "F1" }
+taxable_gain = "164.55"
+"""
+
+
+def test_taxable_gain_deducts_the_vorabpauschale_of_the_units_sold(tmp_path: Path) -> None:
+    """The 2023 notice covers 2022: lot 1 (bought 2021) carries all of it, lot 2 (bought in
+    April 2022) 9/12. Weight 10 x 1 + 10 x 0.75 = 17.5, so 19.00 is 19/17.5 per unit of
+    lot 1 and 0.75 x that per unit of lot 2. The sale of 15 closes lot 1 and 5 of lot 2:
+    gain 1800 - 1000 - 550 = 250, Vorabpauschale 10 x 19/17.5 + 5 x 0.75 x 19/17.5 =
+    14.928571..., taxable (250 - 14.928571...) x 0.7 = 164.55. The notice in the other
+    account doesn't apply."""
+    results = check(load_case(write(tmp_path, VP_CASE)))
+    assert all(r.ok for r in results), results

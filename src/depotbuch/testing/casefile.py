@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Callable
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -231,27 +231,67 @@ def _realized_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
     )
 
 
+def _vp_factor(opened: date, record: date) -> Decimal:
+    """The share of a year's Vorabpauschale a lot carries (§18 Abs. 2 InvStG).
+
+    A notice recorded at the start of year Y+1 covers year Y. A lot bought before Y carries
+    all of it; one bought in month m of Y carries (13 - m)/12; one bought later, none.
+    """
+    year = record.year - 1
+    if opened.year < year:
+        return Decimal(1)
+    if opened.year > year:
+        return Decimal(0)
+    return Decimal(13 - opened.month) / 12
+
+
+def _vp_per_unit(case: Case, asset: str, account: str, vp: Activity) -> dict[date, Decimal]:
+    """Per unit of a lot opened on each date: the notice's amount spread over the units held
+    when the year started (the end of the day before the record date), weighted by
+    `_vp_factor`."""
+    record = vp.ex_date or vp.date
+    held = build_lots(case.activities, record - timedelta(days=1), costs=False).open_lots(
+        asset=asset, account=account
+    )
+    weight = sum((lot.units * _vp_factor(lot.opened, record) for lot in held), Decimal(0))
+    if not vp.amount or weight == 0:
+        return {}
+    return {lot.opened: vp.amount * _vp_factor(lot.opened, record) / weight for lot in held}
+
+
 def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
     """For the private corpus: a provider's taxable gain on fund sales, rebuilt from FIFO.
 
     (gain before tax - Vorabpauschale already assessed on the units sold)
-    x (1 - partial exemption). Not an engine figure: the engine computes no German tax.
+    x (1 - partial exemption). Each notice applies to the account it was booked in and to the
+    lots held when its year started; a sale deducts, per unit closed, what its lot carried.
+    Not an engine figure: the engine computes no German tax.
     """
     del parqet
     asset = _asset(expect, "taxable_gain")
     spec = case.assets.get(asset)
     if spec is None or spec.partial_exemption is None:
         raise ValueError("taxable_gain needs the asset's partial_exemption")
-    if any(
-        a.type is ActivityType.VORABPAUSCHALE and a.asset == asset and a.amount
-        for a in case.activities
-    ):
-        raise NotImplementedError("deducting Vorabpauschale arrives with #24")
     rs = _book(case, expect).realizations(
         asset=asset, account=expect.slice.account, since=expect.since
     )
+    notices = [
+        a
+        for a in case.activities
+        if a.type is ActivityType.VORABPAUSCHALE and a.asset == asset and a.amount
+    ]
+    if notices and any(
+        a.type is ActivityType.SPLIT and a.asset == asset for a in case.activities
+    ):
+        raise NotImplementedError("Vorabpauschale per unit across a split")
+    deducted = Decimal(0)
+    for r in rs:
+        for vp in notices:
+            if vp.account == r.account and r.lot_opened < (vp.ex_date or vp.date) <= r.date:
+                share = _vp_per_unit(case, asset, r.account, vp).get(r.lot_opened, Decimal(0))
+                deducted += share * r.units
     before_tax = sum((r.gain + r.taxes for r in rs), Decimal(0))
-    return before_tax * (1 - spec.partial_exemption / 100)
+    return (before_tax - deducted) * (1 - spec.partial_exemption / 100)
 
 
 METRICS: dict[str, Metric] = {
