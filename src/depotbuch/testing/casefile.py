@@ -44,7 +44,8 @@ from __future__ import annotations
 import tomllib
 from collections.abc import Callable
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -54,7 +55,7 @@ from depotbuch.engine.fx import FxRates
 from depotbuch.engine.holdings import units_held
 from depotbuch.engine.lots import LotBook, Realization, build_lots
 from depotbuch.engine.model import Activity, ActivityType, Asset, AssetKind
-from depotbuch.engine.money import Currency, Dec, is_rate, round_cent
+from depotbuch.engine.money import Currency, Dec, book_exact, is_rate, round_cent
 
 DEFAULT_ACCOUNT = "depot"
 
@@ -322,10 +323,6 @@ def _vp_deductions(case: Case, asset: str, as_of: date) -> dict[int, list[Decima
     return out
 
 
-_PRICE = Decimal("0.0001")
-"""The precision of the price per unit a sale's proceeds are spread over its lots with."""
-
-
 def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
     """For the private corpus: a provider's taxable gain on fund sales, rebuilt from FIFO
     the way Consorsbank computes it. Not an engine figure: the engine computes no German tax.
@@ -357,7 +354,7 @@ def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
             raise ValueError("the Vorabpauschale replay is out of step with the lots")
         units = sum((r.units for r in slices), Decimal(0))
         received = sum((r.proceeds + r.taxes for r in slices), Decimal(0))
-        price = (received / units).quantize(_PRICE, rounding=ROUND_HALF_UP)
+        price = book_exact(Fraction(received) / Fraction(units) * 100) / 100  # 4 decimals
         for r, deducted in zip(slices, carried, strict=True):
             lot_gain = round_cent(price * r.units) - r.cost - deducted
             total += r.gain + r.taxes - deducted - round_cent(lot_gain * rate)

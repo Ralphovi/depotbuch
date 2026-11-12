@@ -180,3 +180,12 @@ def test_no_lot_slice_changes_sign() -> None:
 def test_a_zero_foreign_amount_needs_no_rate() -> None:
     acts = [buy(0, "1", "0.00", currency="USD")]
     assert build_lots(acts, END).invested_capital() == 0
+
+
+def test_a_conversion_rounds_once_from_the_exact_quotient() -> None:
+    """971200517110195.76 / 0.000001370364126214148043810882276 is ...594999... exactly;
+    rounded to 28 digits first, it would book a cent up."""
+    amount = Decimal("971200517110195.76")
+    rate = Decimal("0.000001370364126214148043810882276")
+    booked = FxRates().book_eur(amount, "USD", START, rate)
+    assert booked == Decimal("708717120166662459099.59")

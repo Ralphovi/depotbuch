@@ -12,8 +12,9 @@ from bisect import bisect_right
 from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
+from fractions import Fraction
 
-from depotbuch.engine.money import book, is_rate
+from depotbuch.engine.money import book, book_exact, is_rate
 
 EUR = "EUR"
 
@@ -57,5 +58,9 @@ class FxRates:
     def book_eur(
         self, amount: Decimal, currency: str, on: date, broker_rate: Decimal | None = None
     ) -> Decimal:
-        """A booked amount in EUR: converted as `to_eur`, then booked to the cent."""
-        return book(self.to_eur(amount, currency, on, broker_rate))
+        """A booked amount in EUR: converted as `to_eur`, booked to the cent. The quotient
+        is taken exactly and rounded once (`book_exact`)."""
+        if currency == EUR or amount == 0:
+            return book(amount)
+        rate = broker_rate if broker_rate is not None else self.rate(currency, on)
+        return book_exact(Fraction(amount) / Fraction(rate))

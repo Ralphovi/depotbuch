@@ -33,7 +33,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from depotbuch.engine.money import MAX_BOOKED, Currency, Dec, is_booked, is_rate
+from depotbuch.engine.money import MAX_BOOKED, Currency, Dec, is_booked, is_rate, is_units
 
 
 class AssetKind(StrEnum):
@@ -136,6 +136,7 @@ class Activity(BaseModel):
         t, units, cash, z = self.type, self.units, self.cash, _ZERO
         yield t in _NEEDS_ASSET and not self.asset, "this activity type needs an asset"
         yield t in _NO_UNITS and units != z, "this activity type carries no units"
+        yield not is_units(units), "units: below 10^15, at most 12 decimals"
         yield (
             self.cost_basis is not None
             and (t is not ActivityType.TRANSFER or units <= z or self.cost_basis < z),

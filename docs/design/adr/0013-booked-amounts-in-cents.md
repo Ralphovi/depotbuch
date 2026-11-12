@@ -36,9 +36,11 @@ binary floats at every boundary. Beyond that, two rules apply.
 **Booked amounts are in cents.**
 
 - An activity's booked fields (cash, fees, taxes, a delivery's cost basis, a Vorabpauschale
-  amount) MUST be whole cents below 10^15, and an FX rate MUST lie between 0.000001 and
-  1,000,000; anything else is rejected. Within those bounds every booking, conversion and
-  share fits Python's default 28-digit decimal context exactly to the cent.
+  amount) MUST be whole cents below 10^15, units MUST be below 10^15 with at most 12
+  decimals, and an FX rate MUST lie between 0.000001 and 1,000,000; anything else is
+  rejected. Within those bounds sums of them fit Python's default 28-digit decimal context.
+- A share or a conversion is computed as an exact fraction and rounded to the cent once;
+  a quotient first rounded to the context's 28 digits could land on the wrong cent.
 - An amount the engine books is rounded to the cent, half up, when it comes into existence:
   a conversion to EUR, at the broker's rate or else the ECB rate (`FxRates.book_eur`).
 - A booked amount is split in cents so that the parts add up to it exactly. A partial sale

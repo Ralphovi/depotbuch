@@ -14,15 +14,18 @@ from __future__ import annotations
 
 import re
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from fractions import Fraction
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict
 
 CENT = Decimal("0.01")
 MAX_BOOKED = Decimal(10) ** 15
-"""Booked amounts stay below 10^15 and FX rates within `MIN_RATE`..`MAX_RATE`, so every
-booking, conversion and share fits the default 28-digit decimal context exactly to the cent
-(ADR-0013). Real amounts and ECB rates are orders of magnitude inside both."""
+"""Booked amounts and units stay below 10^15, units have at most `UNIT_PLACES` decimals and
+FX rates lie within `MIN_RATE`..`MAX_RATE`, so sums of them and every booked result fit the
+default 28-digit decimal context (ADR-0013). Real amounts, holdings and ECB rates are orders
+of magnitude inside these bounds."""
+UNIT_PLACES = 12
 MIN_RATE, MAX_RATE = Decimal("1E-6"), Decimal("1E6")
 _CURRENCY = re.compile(r"[A-Z]{3}")
 
@@ -61,6 +64,25 @@ book = round_cent
 """Book an amount: to the cent, half up, as German banks round."""
 
 
+def book_exact(value: Fraction) -> Decimal:
+    """Book an exact value to the cent, half up (a tie away from zero, as `round_cent`).
+
+    Shares and conversions are computed as fractions and rounded once here: a quotient
+    rounded to the decimal context's digits first could round to the wrong cent.
+    """
+    cents = abs(value) * 100
+    whole = int(cents)
+    if cents - whole >= Fraction(1, 2):
+        whole += 1
+    return Decimal((0 if value >= 0 else 1, tuple(int(d) for d in str(whole)), -2))
+
+
+def is_units(units: Decimal) -> bool:
+    """True if `units` is a unit count depotbuch computes with exactly (see `MAX_BOOKED`)."""
+    _, _, exponent = units.as_tuple()
+    return isinstance(exponent, int) and exponent >= -UNIT_PLACES and abs(units) < MAX_BOOKED
+
+
 def is_rate(rate: Decimal) -> bool:
     """True if `rate` is an FX rate depotbuch can convert with (see `MAX_BOOKED`)."""
     return MIN_RATE <= rate <= MAX_RATE
@@ -81,7 +103,7 @@ def share(amount: Decimal, part: Decimal, whole: Decimal) -> Decimal:
     cent. The rest is `amount - share(...)`, so the two always add up to `amount`."""
     if whole == 0:
         raise ValueError("a share of nothing")
-    return book(amount * part / whole)
+    return book_exact(Fraction(amount) * Fraction(part) / Fraction(whole))
 
 
 def allocate(amount: Decimal, weights: list[Decimal]) -> list[Decimal]:

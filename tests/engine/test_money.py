@@ -1,11 +1,20 @@
 from decimal import Decimal
+from fractions import Fraction
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from depotbuch.engine.money import Money, allocate, is_booked, round_cent, share, to_decimal
+from depotbuch.engine.money import (
+    Money,
+    allocate,
+    book_exact,
+    is_booked,
+    round_cent,
+    share,
+    to_decimal,
+)
 
 
 @pytest.mark.parametrize("value", [1.5, 0.0, True, None, [1], "abc", "NaN", "Infinity"])
@@ -125,3 +134,15 @@ def test_share_of_nothing_is_refused() -> None:
 )
 def test_is_booked_needs_no_decimal_context(amount: str, booked: bool) -> None:
     assert is_booked(Decimal(amount)) is booked
+
+
+def test_a_share_is_rounded_once_from_its_exact_value() -> None:
+    """971200517110195.76 / 0.000001370364126214148043810882276 is ...99.594999...
+    exactly; rounded to 28 digits first it is ...99.595 and would book as .60."""
+    amount = Decimal("971200517110195.76")
+    whole = Decimal("0.000001370364126214148043810882276")
+    assert round_cent(amount / whole) == Decimal("708717120166662459099.60")
+    assert share(amount, Decimal(1), whole) == Decimal("708717120166662459099.59")
+    assert book_exact(Fraction(1, 200)) == Decimal("0.01")
+    assert book_exact(Fraction(-1, 200)) == Decimal("-0.01")
+    assert book_exact(Fraction(1, 200) - Fraction(1, 10**40)) == Decimal("0.00")

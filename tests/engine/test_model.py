@@ -105,3 +105,9 @@ def test_amounts_and_rates_outside_the_decimal_context_are_rejected(
 
 def test_the_largest_booked_amount_is_accepted() -> None:
     assert act(type="buy", asset="X1", units="1", cash="-999999999999999.99").cash < 0
+
+
+@pytest.mark.parametrize("units", ["1E15", "0.0000000000001"])
+def test_units_outside_the_decimal_context_are_rejected(units: str) -> None:
+    with pytest.raises(ValidationError, match="units"):
+        act(type="buy", asset="X1", units=units, cash="-1.00")
