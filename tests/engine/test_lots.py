@@ -96,6 +96,8 @@ def test_oversold_is_rejected_with_its_date() -> None:
     with pytest.raises(Oversold) as err:
         build_lots(acts, END)
     assert err.value.when == START + timedelta(days=3)
+    assert err.value.missing == 1
+    assert "6" not in str(err.value)
 
 
 def test_a_sale_cannot_use_another_accounts_lots() -> None:

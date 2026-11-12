@@ -31,11 +31,16 @@ _ZERO = Decimal(0)
 
 
 class Oversold(ValueError):
-    """A sale or delivery out needs more units than the account holds."""
+    """A sale or delivery out needs more units than the account holds.
 
-    def __init__(self, when: dt.date) -> None:
-        super().__init__(f"more units sold than held on {when.isoformat()}")
+    Carries the date and the missing units for the import report (architecture §8.7). The
+    message names neither, so a log of a private case shows no figures.
+    """
+
+    def __init__(self, when: dt.date, missing: Decimal) -> None:
+        super().__init__("more units sold than held")
         self.when = when
+        self.missing = missing
 
 
 class MissingCostBasis(ValueError):
@@ -185,8 +190,9 @@ def _close(queue: deque[Lot], a: Activity, rates: FxRates, *, costs: bool) -> li
     realizes nothing."""
     asset = a.asset or ""  # the caller skips activities without an asset
     total = -a.units
-    if sum((lot.units for lot in queue), _ZERO) < total:
-        raise Oversold(a.date)
+    held = sum((lot.units for lot in queue), _ZERO)
+    if held < total:
+        raise Oversold(a.date, total - held)
     is_sale = a.type is ActivityType.SELL
     proceeds = _eur(a, a.cash, rates) if is_sale and costs else _ZERO
     taxes = _eur(a, a.taxes, rates) if is_sale and costs else _ZERO
