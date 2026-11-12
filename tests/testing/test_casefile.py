@@ -336,3 +336,45 @@ taxable_gain = "0.03"
 """
     results = check(load_case(write(tmp_path, text)))
     assert all(r.ok for r in results), results
+
+
+def test_a_slice_replays_only_its_own_activities(tmp_path: Path) -> None:
+    """X1 has a complete EUR history. X2 has a delivery without a cost basis and a USD buy
+    without a rate; neither stops invested capital or realized gains sliced to X1."""
+    text = """
+name = "slice"
+rule = "a slice replays its own asset"
+[[activities]]
+date = 2024-01-02
+type = "buy"
+asset = "X1"
+units = "2"
+cash = "-200.00"
+[[activities]]
+date = 2024-01-03
+type = "transfer"
+asset = "X2"
+units = "5"
+[[activities]]
+date = 2024-01-04
+type = "buy"
+asset = "X2"
+units = "1"
+cash = "-100.00"
+currency = "USD"
+[[activities]]
+date = 2024-02-01
+type = "sell"
+asset = "X1"
+units = "-1"
+cash = "120.00"
+[[expect]]
+as_of = 2024-06-30
+since = 2024-01-01
+slice = { asset = "X1" }
+invested_capital = "100.00"
+realized_gain = "20.00"
+"""
+    results = check(load_case(write(tmp_path, text)))
+    assert len(results) == 4
+    assert all(r.ok for r in results), results

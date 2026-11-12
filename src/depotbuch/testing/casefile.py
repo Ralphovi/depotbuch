@@ -217,8 +217,21 @@ def _units(case: Case, expect: Expect, parqet: bool) -> Decimal:
     )
 
 
+def _sliced(case: Case, expect: Expect) -> list[Activity]:
+    """The activities of the expectation's asset and account, over their whole history.
+    Lots are per account and asset, so nothing outside the slice changes the figures, and
+    a missing cost basis or rate elsewhere doesn't stop the check."""
+    sl = expect.slice
+    return [
+        a
+        for a in case.activities
+        if (sl.asset is None or a.asset == sl.asset)
+        and (sl.account is None or a.account == sl.account)
+    ]
+
+
 def _book(case: Case, expect: Expect) -> LotBook:
-    return build_lots(case.activities, expect.as_of, case.fx_rates())
+    return build_lots(_sliced(case, expect), expect.as_of, case.fx_rates())
 
 
 def _invested_capital(case: Case, expect: Expect, parqet: bool) -> Decimal:
@@ -262,11 +275,13 @@ class _TaxLot:
 _LOT_MOVES = {ActivityType.SPLIT, ActivityType.BUY, ActivityType.SELL, ActivityType.TRANSFER}
 
 
-def _vp_events(case: Case, asset: str, as_of: date) -> list[tuple[date, int, Activity]]:
+def _vp_events(
+    activities: list[Activity], asset: str, as_of: date
+) -> list[tuple[date, int, Activity]]:
     """The asset's notices and lot moves in replay order. A notice covering year Y takes
     effect at the start of Y+1, before splits and trades, whenever it was posted."""
     events: list[tuple[date, int, int, Activity]] = []
-    for n, a in enumerate(case.activities):
+    for n, a in enumerate(activities):
         if a.asset != asset or a.date > as_of:
             continue
         if a.type is ActivityType.VORABPAUSCHALE and a.amount:
@@ -299,8 +314,10 @@ def _close_tax_lots(queue: list[_TaxLot], units: Decimal) -> list[Decimal]:
     return carried
 
 
-def _vp_deductions(case: Case, asset: str, as_of: date) -> dict[int, list[Decimal]]:
-    """Per sale (its position in `case.activities`, as `Realization.sale`): the
+def _vp_deductions(
+    activities: list[Activity], asset: str, as_of: date
+) -> dict[int, list[Decimal]]:
+    """Per sale (its position in `activities`, as `Realization.sale`): the
     Vorabpauschale already assessed on the units it sold, per lot slice it closed.
 
     Replays the asset's lots in each account in the engine's FIFO order (a delivery by its
@@ -309,7 +326,7 @@ def _vp_deductions(case: Case, asset: str, as_of: date) -> dict[int, list[Decima
     """
     lots: dict[str, list[_TaxLot]] = {}
     out: dict[int, list[Decimal]] = {}
-    for when, n, a in _vp_events(case, asset, as_of):
+    for when, n, a in _vp_events(activities, asset, as_of):
         queue = lots.setdefault(a.account, [])
         if a.type is ActivityType.VORABPAUSCHALE:
             _assess(queue, a.amount or Decimal(0), when.year - 1)
@@ -350,7 +367,7 @@ def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
     rs = _book(case, expect).realizations(
         asset=asset, account=expect.slice.account, since=expect.since
     )
-    vp = _vp_deductions(case, asset, expect.as_of)
+    vp = _vp_deductions(_sliced(case, expect), asset, expect.as_of)
     sales: dict[int, list[Realization]] = {}
     for r in rs:
         sales.setdefault(r.sale, []).append(r)
