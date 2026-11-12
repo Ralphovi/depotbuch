@@ -1,0 +1,46 @@
+name = "value-total-sums-rounded-positions"
+rule = "ADR-0013: a value is the sum of its positions, each rounded to the cent, as a holdings statement adds it up"
+working = """
+Three securities, each 1 unit at a close of 10.005 EUR: each position is 10.005, booked
+half up as 10.01. The portfolio is 3 x 10.01 = 30.03, as the statement's total would
+show; summed first and rounded once it would be 30.015 -> 30.02.
+"""
+
+[prices.X1]
+2024-06-28 = "10.005"
+
+[prices.X2]
+2024-06-28 = "10.005"
+
+[prices.X3]
+2024-06-28 = "10.005"
+
+[[activities]]
+date = 2024-06-03
+type = "buy"
+asset = "X1"
+units = "1"
+cash = "-10.00"
+
+[[activities]]
+date = 2024-06-03
+type = "buy"
+asset = "X2"
+units = "1"
+cash = "-10.00"
+
+[[activities]]
+date = 2024-06-03
+type = "buy"
+asset = "X3"
+units = "1"
+cash = "-10.00"
+
+[[expect]]
+as_of = 2024-06-28
+slice = { asset = "X1" }
+value = "10.01"
+
+[[expect]]
+as_of = 2024-06-28
+value = "30.03"

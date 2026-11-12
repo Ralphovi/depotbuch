@@ -1,0 +1,47 @@
+name = "festgeld-30e-360-starts-on-31st"
+rule = "ADR-0015: 30E/360 counts every month as 30 days and a 31st as the 30th"
+working = """
+10000.00 at 3.6 % 30E/360: 1.00 per interest day. Start 2025-01-31 (earns), maturity
+2025-07-31 (doesn't). 30E days between two dates: 360 x years + 30 x months + days, with
+31 counted as 30. By the end of a day, the days from the start to the next morning have
+earned.
+End of 2025-01-31: 31 Jan to 1 Feb = 30 + 1 - 30 = 1 day: 10001.00.
+End of 2025-02-28: 31 Jan to 1 Mar = 60 + 1 - 30 = 31: 10031.00 (28 February earns 3 days,
+filling February to 30).
+End of 2025-03-01: 31 Jan to 2 Mar = 32: 10032.00.
+Maturity 2025-07-31: the last earning day is 30 July, so 31 Jan to 31 Jul = 180 + 30 - 30 =
+180: 10180.00, half a year at 3.6 %.
+"""
+
+[assets.FG]
+kind = "deposit"
+
+[accounts.fg3]
+deposit = { principal = "10000.00", rate = "3.6", start = 2025-01-31, maturity = 2025-07-31, day_count = "30E/360" }
+
+[[activities]]
+date = 2025-01-31
+type = "deposit"
+account = "fg3"
+asset = "FG"
+cash = "10000.00"
+
+[[expect]]
+as_of = 2025-01-31
+slice = { account = "fg3" }
+value = "10001.00"
+
+[[expect]]
+as_of = 2025-02-28
+slice = { account = "fg3" }
+value = "10031.00"
+
+[[expect]]
+as_of = 2025-03-01
+slice = { account = "fg3" }
+value = "10032.00"
+
+[[expect]]
+as_of = 2025-07-31
+slice = { account = "fg3" }
+value = "10180.00"

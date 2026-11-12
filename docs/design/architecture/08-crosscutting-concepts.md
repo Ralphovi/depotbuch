@@ -86,12 +86,16 @@ provider, account, asset class or single asset.
 | Asset type | Value on a day |
 |------------|----------------|
 | Security | Units × close, divided by the ECB rate for a foreign currency (quoted as units of that currency per EUR). Closes are adjusted for splits but not for dividends, which are booked as activities. |
-| Tagesgeld, Verrechnungskonto | Account balance from bank statements. |
-| Festgeld | Principal plus interest accrued daily at the contract rate, until the maturity statement. |
+| Bond | Nominal × price in percent / 100, converted the same way (ADR-0014). |
+| Tagesgeld, Verrechnungskonto | Account balance: the sum of the cash its bookings moved. A booking without an asset (deposit, withdrawal, interest, fee, tax) belongs to its account's own balance; a cash asset may also be named. |
+| Festgeld | Balance plus simple interest accrued daily under the account's terms (principal, rate, start, maturity, day count act/365, act/360 or 30E/360, and whether the start and maturity days earn) and not yet credited; accrual stops at maturity, and the payout closes it (ADR-0015). An account with deposit terms is a Festgeld. |
 | Pension contract (step 2) | Last statement value held flat until the next; fund units × fund price where the contract reports units. |
 
 The last close or valuation is carried forward over gaps; a held asset is never valued at
-zero for lack of data. An activity is converted at the broker's rate when the statement gives
+zero for lack of data: with no close or rate on or before the day, valuation fails
+(`MissingPrice`, `MissingRate`) rather than counting it as zero. Each position's value is
+computed exactly and rounded to the cent once; a slice's value is the sum of those cents,
+as a holdings statement adds up its total (ADR-0013). `engine/valuation.py` computes it. An activity is converted at the broker's rate when the statement gives
 one, otherwise at the ECB rate for that day. Foreign-currency assets include the FX effect.
 
 ## 8.3 Lots and FIFO
@@ -175,7 +179,10 @@ different rules (ADR-0013, Proposed):
   between 10^-6 and 10^6, so sums fit the default decimal context); a share or conversion
   is computed exactly and rounded once; an amount the engine books is rounded half up when it comes into
   existence; a booked amount is split in cents whose parts add up to it exactly.
-- **Analytical figures** (values, return factors, TTWROR, IZF) keep full precision and are
+- **Values** are rounded where a holdings statement rounds them: each position to the cent
+  from its exact value, and a total as the sum of those cents. Where depotbuch and a
+  statement could differ by a cent, the statement wins.
+- **Analytical figures** (return factors, TTWROR, IZF) keep full precision and are
   rounded only for display and comparison. Unit counts, prices and FX rates keep the digits
   the source gives.
 

@@ -1,0 +1,36 @@
+name = "festgeld-act-360-ends-on-31st"
+rule = "ADR-0015: act/360; here the maturity day earns interest and the start day doesn't"
+working = """
+10000.00 at 3.6 % act/360: 10000 x 0.036 / 360 = 1.00 per interest day. Start 2025-01-31
+(doesn't earn), maturity 2025-03-31 (earns).
+End of 2025-02-28: 1 Feb to 28 Feb = 28 days: 10028.00.
+Maturity 2025-03-31: 1 Feb to 31 Mar = 59 days: 10059.00.
+"""
+
+[assets.FG]
+kind = "deposit"
+
+[accounts.fg2]
+deposit = { principal = "10000.00", rate = "3.6", start = 2025-01-31, maturity = 2025-03-31, day_count = "act/360", accrue_start = false, accrue_maturity = true }
+
+[[activities]]
+date = 2025-01-31
+type = "deposit"
+account = "fg2"
+asset = "FG"
+cash = "10000.00"
+
+[[expect]]
+as_of = 2025-01-31
+slice = { account = "fg2" }
+value = "10000.00"
+
+[[expect]]
+as_of = 2025-02-28
+slice = { account = "fg2" }
+value = "10028.00"
+
+[[expect]]
+as_of = 2025-03-31
+slice = { account = "fg2" }
+value = "10059.00"

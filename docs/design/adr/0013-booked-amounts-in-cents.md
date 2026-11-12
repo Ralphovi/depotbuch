@@ -20,8 +20,9 @@ The engine handles two different kinds of number. Some are bookings: the cash of
 its fees and taxes, a lot's cost, the part of that cost a partial sale takes, the part of a
 sale's proceeds that falls on each lot, an amount converted from another currency. A bank
 books each of these in cents when it comes into existence, rounding half up, and the parts
-of a split amount add up to the amount. Others are analysis: a position's value as units ×
-price, a daily return factor, TTWROR, IZF. They are ratios or valuations, never booked.
+of a split amount add up to the amount. Others are analysis: a daily return factor, TTWROR,
+IZF. They are ratios, never booked. A position's value sits between: no bank books it, but
+a holdings statement shows it to the cent and adds its total from those cents.
 
 Carrying bookings at the full precision of Python's decimal context (28 significant digits)
 is not an accounting rule. It leaves fractions of a cent in costs and gains that no ledger
@@ -50,10 +51,14 @@ binary floats at every boundary. Beyond that, two rules apply.
   booked and the last taking what is left (`money.share`, `money.allocate`).
 - Sums of booked amounts are therefore exact, and checks on them need no tolerance.
 
-**Analytical figures keep full precision.** Values, return factors, TTWROR and IZF are
-computed without intermediate rounding and rounded only for display and comparison. Unit
-counts, prices and FX rates keep the digits their source gives and are never rounded by
-depotbuch.
+**Where a statement shows a figure, the statement wins.** If depotbuch and a provider's
+statement could differ by a cent, depotbuch rounds where the statement rounds. A
+position's value is computed exactly and rounded to the cent once, half up, and the value
+of a slice is the sum of its positions' cents, as a holdings statement adds up its total.
+
+**Analytical figures keep full precision.** Return factors, TTWROR and IZF are computed
+without intermediate rounding and rounded only for display and comparison. Unit counts,
+prices and FX rates keep the digits their source gives and are never rounded by depotbuch.
 
 We reject carrying bookings at full precision, rounding analytical figures at each step,
 and banker's rounding (half even), which no German bank in the history examined uses.
@@ -66,8 +71,9 @@ and banker's rounding (half even), which no German bank in the history examined 
   `Decimal` fields, and test data writes amounts as strings.
 - Where depotbuch books an amount a provider also books (a lot's cost share, a converted
   amount), the provider's own rule decides the cent. Half up per booking is the rule
-  observed so far. The private reconciliation of the Consorsbank history still differs from
-  the bank's taxable sale gains by 1 and 3 cents, which neither this rule nor any other
-  rounding variant tested explains (proposal 0002, *Open questions*). If a provider turns
-  out to book at another point, that point is modelled, and this record is superseded if
-  the rule itself has to change.
+  observed so far. Where a provider books at another point, that point is modelled: the
+  Consorsbank partial exemption is rounded per lot from a price per unit rounded to four
+  decimals, which the private reconciliation now matches to the cent. This record is
+  superseded only if the rule itself has to change.
+- A portfolio total matches the statement's to the cent. It can differ by a cent from the
+  same positions summed at full precision; the statement's total is the one shown.

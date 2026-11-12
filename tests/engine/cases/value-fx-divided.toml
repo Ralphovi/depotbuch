@@ -1,0 +1,36 @@
+name = "value-fx-divided"
+rule = "architecture 8.2: a foreign close is divided by the ECB rate (foreign currency per EUR)"
+working = """
+10 units of a USD security, close 107.12 USD on 2024-06-28, ECB 1.0712 USD per EUR:
+10 x 107.12 / 1.0712 = 1000.00 EUR. (Multiplying would give 1147.47.)
+On Monday 2024-07-08, after the last close and the last rate, both carry: 1000.00.
+"""
+
+[assets.U1]
+currency = "USD"
+
+[prices.U1]
+2024-06-28 = "107.12"
+
+[fx.USD]
+2024-06-27 = "1.0700"
+2024-06-28 = "1.0712"
+
+[[activities]]
+date = 2024-06-03
+type = "buy"
+asset = "U1"
+units = "10"
+cash = "-1000.00"
+currency = "USD"
+fx_rate = "1.0800"
+
+[[expect]]
+as_of = 2024-06-28
+slice = { asset = "U1" }
+value = "1000.00"
+
+[[expect]]
+as_of = 2024-07-08
+slice = { asset = "U1" }
+value = "1000.00"

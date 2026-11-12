@@ -1,0 +1,41 @@
+name = "value-cash-balance"
+rule = "proposal 0001, Valuation by asset type: Tagesgeld and Verrechnungskonto are valued at their balance"
+working = """
+Tagesgeld: deposit 1000.00, interest 2.50, withdrawal 200.00: 802.50 on 2024-06-30.
+On 2024-06-15, before the withdrawal: 1002.50. A Tagesgeld earns no accrual between
+postings; its value is the balance.
+"""
+
+[assets.TG]
+kind = "cash"
+
+[[activities]]
+date = 2024-06-01
+type = "deposit"
+account = "tagesgeld"
+asset = "TG"
+cash = "1000.00"
+
+[[activities]]
+date = 2024-06-14
+type = "interest"
+account = "tagesgeld"
+asset = "TG"
+cash = "2.50"
+
+[[activities]]
+date = 2024-06-20
+type = "withdrawal"
+account = "tagesgeld"
+asset = "TG"
+cash = "-200.00"
+
+[[expect]]
+as_of = 2024-06-15
+slice = { account = "tagesgeld" }
+value = "1002.50"
+
+[[expect]]
+as_of = 2024-06-30
+slice = { account = "tagesgeld" }
+value = "802.50"

@@ -29,9 +29,10 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from depotbuch.engine.model import Activity
+from depotbuch.engine.model import Activity, DepositTerms
 from depotbuch.testing.casefile import (
     METRICS,
+    AccountSpec,
     AssetSpec,
     Case,
     Expect,
@@ -45,7 +46,10 @@ _HERE = Path(__file__).resolve()
 
 # Field names the output may show: the format's own, never keys a case defines.
 _FIELDS = frozenset().union(
-    *(m.model_fields for m in (Case, Expect, Slice, AssetSpec, Activity))
+    *(
+        m.model_fields
+        for m in (Case, Expect, Slice, AssetSpec, AccountSpec, DepositTerms, Activity)
+    )
 ) | {"metrics", "parqet"}
 
 
@@ -173,7 +177,8 @@ def unsafe_location(path: Path, own_repo: Path | None) -> bool:
 def _safe_loc(loc: tuple[int | str, ...]) -> str:
     """A validation error's location, with every key the case defines redacted.
 
-    Redaction is by position, not by name: the key under `assets`, `prices` or `fx`, and the
+    Redaction is by position, not by name: the key under `assets`, `accounts`, `prices` or
+    `fx`, and the
     date under a price or rate series, are always `<key>`, even if one happens to equal a
     field name. A metric name is shown only if it is one the harness knows.
     """
@@ -184,7 +189,7 @@ def _safe_loc(loc: tuple[int | str, ...]) -> str:
         if isinstance(p, int):
             parts.append(f"[{p}]")
             continue
-        if parent in {"assets", "prices", "fx"} or grandparent in {"prices", "fx"}:
+        if parent in {"assets", "accounts", "prices", "fx"} or grandparent in {"prices", "fx"}:
             shown = "<key>"
         elif parent in {"metrics", "parqet"}:
             shown = p if p in METRICS else "<key>"

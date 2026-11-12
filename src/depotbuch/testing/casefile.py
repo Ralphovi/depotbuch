@@ -17,8 +17,18 @@ cash = "-1004.95"
 [assets.X1]
 currency = "USD"          # EUR by default
 
-[prices.X1]               # closes in the asset's currency
+[prices.X1]               # closes in the asset's currency; a bond's in percent
 2024-06-28 = "125.00"
+
+[accounts.fg1]            # only where an account needs more than its id
+provider = "bank"
+
+[accounts.fg1.deposit]    # Festgeld terms (ADR-0015)
+principal = "10000.00"
+rate = "3.0"              # percent per year
+start = 2024-01-02
+maturity = 2025-01-02
+day_count = "act/365"     # or act/360, 30E/360
 
 [fx.USD]                  # USD per EUR, as the ECB quotes it
 2024-06-28 = "1.0712"
@@ -27,7 +37,7 @@ currency = "USD"          # EUR by default
 as_of = 2024-06-28
 since = 2024-01-01        # for range metrics (realized_gain): after this day, up to as_of
 slice = { asset = "X1" }
-units = "3"               # one key per metric
+units = "3"               # one key per metric: units, value, invested_capital, realized_gain
 parqet = { units = "3" }  # only where --parqet differs
 ```
 
@@ -54,7 +64,14 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.holdings import units_held
 from depotbuch.engine.lots import LotBook, Realization, build_lots
-from depotbuch.engine.model import Activity, ActivityType, Asset, AssetKind
+from depotbuch.engine.model import (
+    Account,
+    Activity,
+    ActivityType,
+    Asset,
+    AssetKind,
+    DepositTerms,
+)
 from depotbuch.engine.money import (
     Currency,
     Dec,
@@ -63,6 +80,7 @@ from depotbuch.engine.money import (
     multiply_units,
     round_cent,
 )
+from depotbuch.engine.valuation import Prices, value
 
 DEFAULT_ACCOUNT = "depot"
 
@@ -84,6 +102,13 @@ class AssetSpec(BaseModel):
     partial_exemption: Dec | None = Field(default=None, ge=0, le=100)
     """Teilfreistellung in percent, for the private `taxable_gain` check only; not an engine
     attribute (the engine computes no German tax)."""
+
+
+class AccountSpec(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    provider: str = Field(default="default", min_length=1)
+    deposit: DepositTerms | None = None
 
 
 class Expect(BaseModel):
@@ -134,6 +159,7 @@ class Case(BaseModel):
     working: str = ""
     activities: list[Activity]
     assets: dict[str, AssetSpec] = Field(default_factory=dict)
+    accounts: dict[str, AccountSpec] = Field(default_factory=dict)
     prices: dict[str, dict[date, Dec]] = Field(default_factory=dict)
     fx: dict[Currency, dict[date, Dec]] = Field(default_factory=dict)
     expect: list[Expect] = Field(min_length=1)
@@ -174,6 +200,12 @@ class Case(BaseModel):
 
     def fx_rates(self) -> FxRates:
         return FxRates(self.fx)
+
+    def asset_map(self) -> dict[str, Asset]:
+        return {a.id: a for a in self.asset_list()}
+
+    def account_map(self) -> dict[str, Account]:
+        return {i: Account(id=i, **spec.model_dump()) for i, spec in self.accounts.items()}
 
 
 def load_case(path: Path) -> Case:
@@ -232,6 +264,22 @@ def _sliced(case: Case, expect: Expect) -> list[Activity]:
 
 def _book(case: Case, expect: Expect) -> LotBook:
     return build_lots(_sliced(case, expect), expect.as_of, case.fx_rates())
+
+
+def _value(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    del parqet  # values are the same in both modes
+    if expect.slice.provider is not None:
+        raise NotImplementedError("provider slices arrive with the slice rule (#26)")
+    return value(
+        case.activities,
+        expect.as_of,
+        assets=case.asset_map(),
+        prices=Prices(case.prices),
+        fx=case.fx_rates(),
+        accounts=case.account_map(),
+        asset=expect.slice.asset,
+        account=expect.slice.account,
+    )
 
 
 def _invested_capital(case: Case, expect: Expect, parqet: bool) -> Decimal:
@@ -390,8 +438,9 @@ METRICS: dict[str, Metric] = {
     "invested_capital": _invested_capital,
     "realized_gain": _realized_gain,
     "taxable_gain": _taxable_gain,
+    "value": _value,
 }
-MONEY = frozenset({"invested_capital", "realized_gain", "taxable_gain"})
+MONEY = frozenset({"invested_capital", "realized_gain", "taxable_gain", "value"})
 """Metrics compared to the cent."""
 PRIVATE_ONLY = frozenset({"taxable_gain"})
 """Metrics for the private corpus, never used in a public case."""

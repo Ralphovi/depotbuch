@@ -130,6 +130,15 @@ def test_keys_that_look_like_field_names_are_still_redacted(
     assert "assets.account" not in out
 
 
+def test_account_keys_are_redacted(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    text = GOOD.replace("{units}", "17.123") + '\n[accounts.account]\nprovider = ""\n'
+    c = corpus(tmp_path / "c", **{"c01.toml": text})
+    assert run(str(c), own_repo=None) == 1
+    out = capsys.readouterr().out
+    assert "accounts.<key>.provider" in out
+    assert "accounts.account" not in out
+
+
 def test_refuses_without_a_path(capsys: pytest.CaptureFixture[str]) -> None:
     assert main([]) == 2
     assert "usage" in capsys.readouterr().out
