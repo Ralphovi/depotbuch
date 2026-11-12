@@ -29,10 +29,12 @@ We will value a Festgeld from its activities and its account's terms:
   interest. They are entered once with the account; act/365 with the start day earning and
   the maturity day not is the default.
 - Interest is simple: principal × rate × interest days / days in the year (365 for act/365,
-  even in a leap year; 360 otherwise). At the end of a day, every day from the start up to
-  and including that day has earned, adjusted by the two flags; after maturity no more.
+  even in a leap year; 360 otherwise). The earning days run from the start to the maturity,
+  without the start or the maturity day unless its flag says so. By the end of a day, each
+  earning day up to it has earned what the convention counts from it to the next day, so
+  the count never goes down; after maturity it stops.
 - The value is the account's balance, from its bookings, plus the interest accrued and not
-  yet credited. Once a withdrawal on or after maturity pays the deposit out, the value is
+  yet credited (gross: a credit's net amount plus the tax withheld from it). Once a withdrawal on or after maturity pays the deposit out, the value is
   the balance alone: the statement is what happened.
 - The accrual is an analytical figure at full precision (ADR-0013); the interest the bank
   credits is a booked amount, in cents.
@@ -43,8 +45,8 @@ needs them.
 ## Consequences
 
 - A Festgeld with an unusual convention needs a new `DayCount`, not a new code path.
-- Under 30E/360 the daily value jumps at the end of February (28 February to 1 March counts
-  as 3 days), as the convention does.
+- Under 30E/360 a 31st earns nothing and the last day of February earns up to 3 days, so the
+  daily value steps there, as the convention does.
 - A multi-year Festgeld that compounds yearly is valued a little low until the bank
   credits the year's interest, after which the balance carries it. If that matters, a later
   ADR adds compounding to the terms.

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -145,3 +145,40 @@ def test_invalid_deposit_terms_are_rejected(kw: dict[str, Any]) -> None:
 
 def test_day_counts_have_their_names() -> None:
     assert {d.value for d in DayCount} == {"act/365", "act/360", "30E/360"}
+
+
+def test_bookings_without_an_asset_are_the_accounts_own_balance() -> None:
+    """A Tagesgeld booked without an asset is cash; a Festgeld account (with terms) accrues."""
+    t = terms()
+    acts = [
+        act(type="deposit", account="tg", cash="500.00"),
+        act(type="fee", account="tg", cash="-1.50"),
+        act(date=t.start, type="deposit", account="fg", cash="10000.00"),
+    ]
+    accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
+    on = date(2024, 1, 11)  # two days earned at 1.00
+    assert value(acts, D, assets={}, prices=Prices(), account="tg") == Decimal("498.50")
+    got = value(acts, on, assets={}, prices=Prices(), accounts=accounts, account="fg")
+    assert got == Decimal("10002.00")
+    assert value(acts, D, assets={}, prices=Prices(), asset="X1") == 0
+
+
+@pytest.mark.parametrize("convention", list(DayCount))
+@pytest.mark.parametrize("flags", [(True, False), (False, True), (True, True), (False, False)])
+def test_interest_days_never_decrease(convention: DayCount, flags: tuple[bool, bool]) -> None:
+    """Over terms starting and ending on every kind of month end, day by day."""
+    for start, maturity in [
+        (date(2025, 1, 1), date(2025, 1, 31)),
+        (date(2025, 1, 31), date(2025, 3, 31)),
+        (date(2024, 2, 28), date(2024, 3, 1)),
+        (date(2025, 2, 28), date(2026, 2, 28)),
+    ]:
+        t = terms(
+            start=start,
+            maturity=maturity,
+            day_count=convention,
+            accrue_start=flags[0],
+            accrue_maturity=flags[1],
+        )
+        days = [interest_days(t, start + timedelta(days=i)) for i in range(-2, 400)]
+        assert days == sorted(days)

@@ -87,8 +87,8 @@ provider, account, asset class or single asset.
 |------------|----------------|
 | Security | Units × close, divided by the ECB rate for a foreign currency (quoted as units of that currency per EUR). Closes are adjusted for splits but not for dividends, which are booked as activities. |
 | Bond | Nominal × price in percent / 100, converted the same way (ADR-0014). |
-| Tagesgeld, Verrechnungskonto | Account balance: the sum of the cash its bookings moved. Each booking of a cash account names the account's cash asset. |
-| Festgeld | Balance plus simple interest accrued daily under the account's terms (principal, rate, start, maturity, day count act/365, act/360 or 30E/360, and whether the start and maturity days earn) and not yet credited; accrual stops at maturity, and the payout closes it (ADR-0015). |
+| Tagesgeld, Verrechnungskonto | Account balance: the sum of the cash its bookings moved. A booking without an asset (deposit, withdrawal, interest, fee, tax) belongs to its account's own balance; a cash asset may also be named. |
+| Festgeld | Balance plus simple interest accrued daily under the account's terms (principal, rate, start, maturity, day count act/365, act/360 or 30E/360, and whether the start and maturity days earn) and not yet credited; accrual stops at maturity, and the payout closes it (ADR-0015). An account with deposit terms is a Festgeld. |
 | Pension contract (step 2) | Last statement value held flat until the next; fund units × fund price where the contract reports units. |
 
 The last close or valuation is carried forward over gaps; a held asset is never valued at

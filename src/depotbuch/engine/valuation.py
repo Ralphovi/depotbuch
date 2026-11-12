@@ -6,7 +6,7 @@ in EUR at full precision (an analytical figure, ADR-0013):
 - A security: units x close, divided by the ECB rate for a foreign currency.
 - A bond: nominal x price in percent / 100, converted the same way (ADR-0014).
 - A cash balance (Verrechnungskonto, Tagesgeld): the sum of the cash its bookings moved.
-  Each booking of a cash account names the account's cash asset.
+  A booking without an asset belongs to its account's own balance.
 - A Festgeld: its balance plus the interest accrued under the account's terms and not yet
   credited, until the bank pays it out (ADR-0015).
 
@@ -36,6 +36,7 @@ from depotbuch.engine.model import (
 from depotbuch.engine.money import MAX_BOOKED, exact_sum
 
 _ZERO = Decimal(0)
+_TRADED = {AssetKind.SECURITY, AssetKind.BOND}
 _HUNDRED = Decimal(100)
 
 
@@ -80,26 +81,28 @@ def _days_30e(start: dt.date, end: dt.date) -> int:
 _YEAR = {DayCount.ACT_365: 365, DayCount.ACT_360: 360, DayCount.E30_360: 360}
 
 
+def _days(convention: DayCount, start: dt.date, end: dt.date) -> int:
+    if convention is DayCount.E30_360:
+        return _days_30e(start, end)
+    return (end - start).days
+
+
 def interest_days(terms: DepositTerms, on: dt.date) -> int:
     """The interest days a deposit has earned by the end of `on`.
 
-    Every day from start to maturity earns interest, except the start day unless
-    `accrue_start` and the maturity day unless `accrue_maturity`; after maturity no more.
-    Under 30E/360 the days between two dates are counted as the convention counts them.
+    The earning days run from the start (or the day after, unless `accrue_start`) to the
+    maturity (or the day before, unless `accrue_maturity`), and stop there. Each earning day
+    counts as the convention counts it to the next day: under 30E/360 a 31st counts 0 and
+    the last day of February up to 3. So the count never decreases from one day to the next.
     """
-    if on < terms.start:
+    first = terms.start if terms.accrue_start else terms.start + dt.timedelta(days=1)
+    last_earning = (
+        terms.maturity if terms.accrue_maturity else terms.maturity - dt.timedelta(days=1)
+    )
+    last = min(on, last_earning)
+    if last < first:
         return 0
-    end = min(on, terms.maturity)
-    if terms.day_count is DayCount.E30_360:
-        between = _days_30e(terms.start, end)
-    else:
-        between = (end - terms.start).days
-    days = between + 1
-    if not terms.accrue_start:
-        days -= 1
-    if end == terms.maturity and not terms.accrue_maturity:
-        days -= 1
-    return max(days, 0)
+    return _days(terms.day_count, first, last + dt.timedelta(days=1))
 
 
 def accrued_interest(terms: DepositTerms, on: dt.date) -> Decimal:
@@ -138,26 +141,28 @@ def value(
 ) -> Decimal:
     """The value in EUR of the positions in the slice at the end of `on`.
 
-    An asset that isn't in `assets` is an EUR security. Only the slice's activities are
-    replayed, so a problem in another position doesn't stop it.
+    An asset that isn't in `assets` is an EUR security. A booking without an asset
+    (deposit, withdrawal, interest, fee, tax) belongs to its account's own balance: a
+    Festgeld if the account has deposit terms, cash otherwise; a slice by asset leaves it
+    out. Only the slice's activities are replayed, so a problem in another position
+    doesn't stop it.
     """
     market = _Market(assets, prices, fx or FxRates(), accounts or {})
     own = [
         a
         for a in activities
-        if a.asset is not None
-        and a.date <= on
+        if a.date <= on
         and (asset is None or a.asset == asset)
         and (account is None or a.account == account)
     ]
     parts: list[Decimal] = []
-    traded = [a for a in own if market.kind(a.asset) in {AssetKind.SECURITY, AssetKind.BOND}]
+    traded = [a for a in own if a.asset and market.kind(a.asset) in _TRADED]
     for (_, held_asset), units in _units(traded, on).items():
         if units:
             parts.append(_security(market, held_asset, units, on))
-    held = [a for a in own if market.kind(a.asset) in {AssetKind.CASH, AssetKind.DEPOSIT}]
+    held = [a for a in own if not a.asset or market.kind(a.asset) not in _TRADED]
     for acc, cash_asset in sorted({(a.account, a.asset or "") for a in held}):
-        bookings = [a for a in held if (a.account, a.asset) == (acc, cash_asset)]
+        bookings = [a for a in held if (a.account, a.asset or "") == (acc, cash_asset)]
         parts.append(_balance(market, bookings, acc, on))
     return exact_sum(parts)
 
@@ -179,17 +184,23 @@ def _security(market: _Market, asset: str, units: Decimal, on: dt.date) -> Decim
 
 
 def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.date) -> Decimal:
-    """A cash or deposit position: one asset in one account."""
-    asset = bookings[0].asset or ""
-    if any(a.currency != market.currency(asset) for a in bookings):
-        raise ValueError("a cash booking's currency differs from its asset's")
+    """A cash or deposit position: one asset in one account, or the account's own balance
+    (bookings without an asset)."""
+    asset = bookings[0].asset
+    spec = market.accounts.get(account)
+    terms = spec.deposit if spec else None
+    if asset:
+        currency, deposit = market.currency(asset), market.kind(asset) is AssetKind.DEPOSIT
+    else:
+        currency, deposit = bookings[0].currency, terms is not None
+    if any(a.currency != currency for a in bookings):
+        raise ValueError("a cash booking's currency differs from its balance's")
     balance = exact_sum(a.cash for a in bookings)
-    if market.kind(asset) is AssetKind.DEPOSIT:
-        spec = market.accounts.get(account)
-        if spec is None or spec.deposit is None:
+    if deposit:
+        if terms is None:
             raise MissingTerms(account)
-        balance += _uncredited(bookings, spec.deposit, on)
-    return market.rates.to_eur(balance, market.currency(asset), on)
+        balance += _uncredited(bookings, terms, on)
+    return market.rates.to_eur(balance, currency, on)
 
 
 def _uncredited(bookings: list[Activity], terms: DepositTerms, on: dt.date) -> Decimal:
