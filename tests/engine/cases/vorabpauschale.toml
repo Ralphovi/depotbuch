@@ -1,0 +1,41 @@
+name = "vorabpauschale"
+rule = "ADR-0016: a Vorabpauschale is an activity, not income; the tax withheld on it is a tax of the asset"
+working = """
+A fund held all of 2024. On 2025-01-02 its Vorabpauschale for 2024 is 50.00, and 13.19 tax is
+withheld on it; on 2026-01-02 the one for 2025 is 20.00, within the allowance, so nothing is
+withheld. Neither is income. Taxes of the fund: 13.19 in total, 0.00 in 2026.
+"""
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+asset = "F1"
+units = "100"
+cash = "-5000.00"
+
+[[activities]]
+date = 2025-01-02
+type = "vorabpauschale"
+asset = "F1"
+amount = "50.00"
+cash = "-13.19"
+
+[[activities]]
+date = 2026-01-02
+type = "vorabpauschale"
+asset = "F1"
+amount = "20.00"
+cash = "0.00"
+
+[[expect]]
+as_of = 2026-01-31
+slice = { asset = "F1" }
+income = "0.00"
+taxes = "13.19"
+invested_capital = "5000.00"
+
+[[expect]]
+as_of = 2026-01-31
+since = 2025-12-31
+slice = { asset = "F1" }
+taxes = "0.00"

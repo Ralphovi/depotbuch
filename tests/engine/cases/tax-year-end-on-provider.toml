@@ -1,0 +1,86 @@
+name = "tax-year-end-on-provider"
+rule = "proposal 0001, Taxes are attributed where they arise: a yearly tax total belongs to the provider"
+working = """
+Provider cb has a depot and a Verrechnungskonto (vk). A sale in the depot withholds 5.00.
+At year end the bank settles 12.34 more on vk, without an asset, and in January refunds 3.00.
+Taxes in 2024: X1 5.00; depot 5.00; vk 12.34; provider cb 17.34. Provider other: 0.
+With the refund (to 2025-01-31): cb 14.34.
+"""
+
+[accounts.depot]
+provider = "cb"
+
+[accounts.vk]
+provider = "cb"
+
+[accounts.elsewhere]
+provider = "other"
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+asset = "X1"
+units = "10"
+cash = "-100.00"
+
+[[activities]]
+date = 2024-06-03
+type = "sell"
+asset = "X1"
+units = "-10"
+cash = "140.00"
+taxes = "5.00"
+
+[[activities]]
+date = 2024-12-31
+type = "tax"
+account = "vk"
+cash = "-12.34"
+
+[[activities]]
+date = 2025-01-15
+type = "tax"
+account = "vk"
+cash = "3.00"
+
+[[activities]]
+date = 2024-03-01
+type = "deposit"
+account = "elsewhere"
+cash = "50.00"
+
+[[expect]]
+as_of = 2024-12-31
+slice = { asset = "X1" }
+taxes = "5.00"
+
+[[expect]]
+as_of = 2024-12-31
+slice = { account = "depot" }
+taxes = "5.00"
+
+[[expect]]
+as_of = 2024-12-31
+slice = { account = "vk" }
+taxes = "12.34"
+
+[[expect]]
+as_of = 2024-12-31
+slice = { provider = "cb" }
+taxes = "17.34"
+
+[[expect]]
+as_of = 2024-12-31
+slice = { provider = "other" }
+taxes = "0.00"
+
+[[expect]]
+as_of = 2025-01-31
+since = 2024-12-31
+slice = { provider = "cb" }
+taxes = "-3.00"
+
+[[expect]]
+as_of = 2025-01-31
+slice = { provider = "cb" }
+taxes = "14.34"

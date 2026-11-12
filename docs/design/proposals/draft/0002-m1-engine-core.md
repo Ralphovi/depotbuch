@@ -245,10 +245,14 @@ and may change with the engine types.
   cent and sums those (ADR-0013), so the totals match too.
 - [ ] **Paid accrued interest on bonds:** part of the purchase cost (as above), or negative
   income in the year it is paid, as German tax treats it?
-- [ ] **Which Consorsbank date is the ex-date?** Its distribution notices give a
-  *Schlusstag* but no separate ex-date. If the Schlusstag is the last day that carries the
-  entitlement, the lots held at its end are those 0001 asks for, which also answers part of
-  0001's open question on ex-dates.
+- [x] **Which Consorsbank date is the ex-date?** Its distribution notices give a
+  *Schlusstag* but no separate ex-date. Resolved: the Schlusstag is the last day that
+  carries the entitlement, so the ex-date is the day after. The fund's own notice for the
+  November 2023 distribution of the Euro Stoxx 50 ETF gives ex-date 15.11.2023 where the
+  Consorsbank notice gives Schlusstag 14.11.2023, and the units on every notice in the
+  private history are those held at the end of its Schlusstag. Consorsbank notices
+  therefore answer 0001's open question on ex-dates for that provider; OFX and the Parqet
+  CSV still give none.
 - [ ] **Corrections and their order.** The Consorsbank history holds confirmations reissued
   under the same order number with a changed cash amount, while architecture §8.7 skips an
   activity whose account + `FITID` is already stored. Should a reissue replace the stored
