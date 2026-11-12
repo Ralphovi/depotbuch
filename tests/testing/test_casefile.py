@@ -79,6 +79,8 @@ def test_check_runs_both_modes(tmp_path: Path) -> None:
         ('units = "2"\nparqet', 'colour = "2"\nparqet'),  # an unknown metric
         ("[fx.USD]", "[fx.usd]"),  # a lower-case currency
         ('type = "buy"', 'type = "buy"\nnote = "x"'),  # an unknown activity field
+        ('units = "2"\nparqet = { units = "2" }', ""),  # an expectation without metrics
+        ('units = "2"\nparqet', "parqet"),  # a parqet value without a default
     ],
 )
 def test_invalid_cases_are_rejected(tmp_path: Path, change: tuple[str, str]) -> None:
@@ -86,6 +88,13 @@ def test_invalid_cases_are_rejected(tmp_path: Path, change: tuple[str, str]) -> 
     assert text != USD_CASE
     with pytest.raises(ValidationError):
         load_case(write(tmp_path, text))
+
+
+def test_provider_slices_are_not_supported_yet(tmp_path: Path) -> None:
+    old = 'slice = { asset = "U1" }'
+    text = USD_CASE.replace(old, 'slice = { asset = "U1", provider = "p" }')
+    with pytest.raises(NotImplementedError):
+        check(load_case(write(tmp_path, text)))
 
 
 def test_malformed_toml_is_rejected(tmp_path: Path) -> None:

@@ -68,22 +68,34 @@ def _roots(top: Path) -> set[str]:
     return set(out.split()) if out else set()
 
 
+def _has_commit(top: Path, sha: str | None) -> bool:
+    return bool(sha) and _git(top, "cat-file", "-e", f"{sha}^{{commit}}") is not None
+
+
 def unsafe_location(path: Path, own_repo: Path | None) -> bool:
     """True if `path` is inside a Git worktree that could commit or push it.
 
-    That is a worktree with a remote, or any clone or worktree of `own_repo` (sharing a
-    root commit with it). A local repository with no remote and its own history is fine:
-    keeping the corpus under version control is encouraged.
+    That is a worktree with a remote, a shallow clone, or any clone or worktree of
+    `own_repo`: one that shares a root commit with it, or whose HEAD is a commit of the
+    other. A local repository with no remote and its own history is fine: keeping the
+    corpus under version control is encouraged.
     """
     top = _worktree(path)
     if top is None:
         return False
-    if _git(top, "remote"):
+    if _git(top, "remote") or _git(top, "rev-parse", "--is-shallow-repository") == "true":
         return True
     if own_repo is None:
         return False
     own_top = _worktree(own_repo)
-    return own_top is not None and (top == own_top or bool(_roots(top) & _roots(own_top)))
+    if own_top is None:
+        return False
+    return (
+        top == own_top
+        or bool(_roots(top) & _roots(own_top))
+        or _has_commit(own_top, _git(top, "rev-parse", "HEAD"))
+        or _has_commit(top, _git(own_top, "rev-parse", "HEAD"))
+    )
 
 
 def _safe_loc(loc: tuple[int | str, ...]) -> str:
@@ -109,9 +121,13 @@ def run(corpus_arg: str, own_repo: Path | None = _HERE.parents[3]) -> int:
         )
         return 2
 
+    cases = sorted(corpus.glob("*.toml"))
+    if not cases:
+        _out("FAILED: no case files (*.toml) in the corpus")
+        return 1
     failed = 0
     details: list[str] = []
-    for path in sorted(corpus.glob("*.toml")):
+    for path in cases:
         name = path.name
         try:
             case = load_case(path)

@@ -92,9 +92,13 @@ class Expect(BaseModel):
 
     @model_validator(mode="after")
     def _known_metrics(self) -> Expect:
+        if not self.metrics:
+            raise ValueError("an expectation needs at least one metric")
         for name in (*self.metrics, *self.parqet):
             if name not in METRICS:
                 raise ValueError("unknown metric")
+        if not set(self.parqet) <= set(self.metrics):
+            raise ValueError("a parqet value needs the same metric's default value")
         return self
 
 
@@ -150,6 +154,8 @@ def _units(case: Case, expect: Expect, parqet: bool) -> Decimal:
     del parqet  # units don't depend on the mode
     if expect.slice.asset is None:
         raise ValueError("units need an asset in the slice")
+    if expect.slice.provider is not None:
+        raise NotImplementedError("provider slices arrive with the slice rule (#26)")
     return units_held(
         case.activities, expect.as_of, asset=expect.slice.asset, account=expect.slice.account
     )

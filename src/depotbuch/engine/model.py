@@ -142,8 +142,10 @@ class Activity(BaseModel):
             raise ValueError("a sale removes units and receives cash (units < 0, cash >= 0)")
         if t is ActivityType.TRANSFER and (self.units == _ZERO or self.cash != _ZERO):
             raise ValueError("a transfer moves units and no cash")
-        if t is ActivityType.SPLIT and (self.ratio is None or self.ratio <= _ZERO):
-            raise ValueError("a split needs a positive ratio")
+        if t is ActivityType.SPLIT and (
+            self.ratio is None or self.ratio <= _ZERO or self.cash != _ZERO
+        ):
+            raise ValueError("a split needs a positive ratio and moves no cash")
         if t in {ActivityType.EXPENSE, ActivityType.FEE} and self.cash > _ZERO:
             raise ValueError("an expense or fee pays cash (cash <= 0)")
         if t is ActivityType.DEPOSIT and self.cash <= _ZERO:

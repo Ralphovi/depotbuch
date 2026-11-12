@@ -152,6 +152,19 @@ def test_refuses_inside_a_separate_clone_without_a_remote(tmp_path: Path) -> Non
     assert run(str(corpus(tmp_path / "clone" / "private")), own_repo=own) == 2
 
 
+def test_refuses_inside_a_shallow_clone(tmp_path: Path) -> None:
+    own = make_repo(tmp_path / "own")
+    git("commit", "-q", "--allow-empty", "-m", "second", cwd=own)
+    git("clone", "-q", "--depth=1", f"file://{own}", str(tmp_path / "shallow"), cwd=tmp_path)
+    git("remote", "remove", "origin", cwd=tmp_path / "shallow")
+    assert run(str(corpus(tmp_path / "shallow" / "private")), own_repo=own) == 2
+
+
+def test_fails_on_an_empty_corpus(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert run(str(corpus(tmp_path / "c")), own_repo=None) == 1
+    assert "no case files" in capsys.readouterr().out
+
+
 def test_refuses_inside_any_repository_with_a_remote(tmp_path: Path) -> None:
     other = make_repo(tmp_path / "other")
     git("remote", "add", "origin", "https://example.invalid/x.git", cwd=other)
