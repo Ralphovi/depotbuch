@@ -246,3 +246,17 @@ def test_everything_in_a_festgeld_account_is_its_balance() -> None:
     ]:
         with pytest.raises(ValueError, match="books only"):
             value([*acts, wrong], date(2024, 1, 21), **kw)
+
+
+def test_a_festgeld_asset_slice_knows_the_account_from_its_whole_history() -> None:
+    """The placement names no asset; the first line naming FG comes after the day valued."""
+    t = terms()
+    acts = [
+        act(date=t.start, type="deposit", account="fg", cash="10000.00"),
+        act(date=date(2024, 1, 22), type="withdrawal", account="fg", asset="FG", cash="-1.00"),
+    ]
+    accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
+    got = value(
+        acts, date(2024, 1, 11), assets={}, prices=Prices(), accounts=accounts, asset="FG"
+    )
+    assert got == Decimal("10002.00")

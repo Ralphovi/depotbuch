@@ -1,0 +1,37 @@
+name = "value-before-a-split"
+rule = "architecture 8.2: closes are adjusted for splits, so units before a later split are restated by it"
+working = """
+1 unit bought on 2024-03-01; a 2-for-1 split on 2024-06-10. The provider's split-adjusted
+close for 2024-06-07 is 50.00 (100.00 unadjusted). On 2024-06-07 1 unit is held, which is
+2 units of today: 2 x 50.00 = 100.00. (Unrestated it would be 50.00.)
+After the split: 2 units x 55.00 = 110.00.
+"""
+
+[prices.X1]
+2024-06-07 = "50.00"
+2024-06-10 = "55.00"
+
+[[activities]]
+date = 2024-03-01
+type = "buy"
+asset = "X1"
+units = "1"
+cash = "-90.00"
+
+[[activities]]
+date = 2024-06-10
+type = "split"
+asset = "X1"
+ratio = "2"
+
+[[expect]]
+as_of = 2024-06-07
+slice = { asset = "X1" }
+units = "1"
+value = "100.00"
+
+[[expect]]
+as_of = 2024-06-10
+slice = { asset = "X1" }
+units = "2"
+value = "110.00"

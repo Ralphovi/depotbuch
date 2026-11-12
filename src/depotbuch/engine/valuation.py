@@ -10,8 +10,10 @@ in EUR at full precision (an analytical figure, ADR-0013):
 - A Festgeld: its balance plus the interest accrued under the account's terms and not yet
   credited, until the bank pays it out (ADR-0015).
 
-A close or rate missing on the day is carried forward from the last earlier one. A held
-position with no close or rate on or before the day raises instead of counting as zero.
+Closes are adjusted for splits, as price providers give them: on a day before a split,
+the units held are restated by its ratio. A close or rate missing on the day is carried
+forward from the last earlier one. A held position with no close or rate on or before the
+day raises instead of counting as zero.
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ from depotbuch.engine.model import (
     DayCount,
     DepositTerms,
 )
-from depotbuch.engine.money import MAX_BOOKED, exact_sum
+from depotbuch.engine.money import MAX_BOOKED, exact_sum, multiply_units
 
 _ZERO = Decimal(0)
 _TRADED = {AssetKind.SECURITY, AssetKind.BOND}
@@ -177,26 +179,47 @@ def value(
     doesn't stop it.
     """
     market = _Market(assets, prices, fx or FxRates(), accounts or {})
-    scope = [
-        a for a in activities if a.date <= on and (account is None or a.account == account)
-    ]
+    every = [a for a in activities if account is None or a.account == account]
+    scope = [a for a in every if a.date <= on]
     if asset is None:
         own = scope
-    else:  # a Festgeld account is one balance: its asset's slice is the whole account
-        festgeld = {a.account for a in scope if a.asset == asset and market.terms(a.account)}
+    else:  # a Festgeld account is one balance: its asset's slice is the whole account,
+        # known from its whole history, not only the bookings up to `on`
+        festgeld = {a.account for a in every if a.asset == asset and market.terms(a.account)}
         own = [a for a in scope if a.asset == asset or a.account in festgeld]
     traded = [a for a in own if not market.is_balance(a)]
     held = [a for a in own if market.is_balance(a)]
     parts: list[Decimal] = []
-    for (_, held_asset), units in _units(traded, on).items():
+    for (acc, held_asset), units in _units(traded, on).items():
         if units:
-            parts.append(_security(market, held_asset, units, on))
+            restated = _in_todays_units(units, every, acc, held_asset, on)
+            parts.append(_security(market, held_asset, restated, on))
     groups: dict[tuple[str, str], list[Activity]] = {}
     for a in held:
         groups.setdefault(market.balance_key(a), []).append(a)
     for (acc, _), bookings in sorted(groups.items()):
         parts.append(_balance(market, bookings, acc, on))
     return exact_sum(parts)
+
+
+def _in_todays_units(
+    units: Decimal, activities: list[Activity], account: str, asset: str, on: dt.date
+) -> Decimal:
+    """`units` held at the end of `on`, restated by every later split of that position:
+    closes are adjusted for splits (architecture §8.2), so a close before a split is per
+    unit of today."""
+    for a in sorted(
+        (
+            a
+            for a in activities
+            if a.type is ActivityType.SPLIT
+            and a.date > on
+            and (a.account, a.asset) == (account, asset)
+        ),
+        key=lambda a: a.date,
+    ):
+        units = multiply_units(units, a.ratio or Decimal(1))
+    return units
 
 
 def _units(activities: list[Activity], on: dt.date) -> dict[tuple[str, str], Decimal]:
