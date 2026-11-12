@@ -74,8 +74,9 @@ class DepositTerms(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     principal: Dec = Field(gt=0)
-    rate: Dec = Field(ge=-100, le=100)
-    """Nominal interest in percent per year."""
+    rate: Dec = Field(ge=0, le=100)
+    """Nominal interest in percent per year. Not negative: a bank's negative interest would
+    be a debit, which no activity type books yet."""
     start: dt.date
     maturity: dt.date
     day_count: DayCount = DayCount.ACT_365

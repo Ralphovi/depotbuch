@@ -143,6 +143,7 @@ def test_a_slice_values_only_its_own_positions() -> None:
         {"principal": "0"},
         {"principal": "1.001"},
         {"rate": "101"},
+        {"rate": "-0.5"},
         {"day_count": "act/act"},
     ],
 )
@@ -239,6 +240,9 @@ def test_everything_in_a_festgeld_account_is_its_balance() -> None:
     assert value(acts, date(2024, 1, 21), **kw) == Decimal("10010.00")
     assert value(acts, date(2024, 1, 21), asset="P1", **kw) == Decimal("10010.00")
     assert value(acts, date(2024, 1, 22), asset="P1", **kw) == Decimal("10.00")
-    buy = act(date=t.start, type="buy", account="fg", asset="X1", units="1", cash="-1.00")
-    with pytest.raises(ValueError, match="no units"):
-        value([*acts, buy], date(2024, 1, 21), **kw)
+    for wrong in [
+        act(date=t.start, type="buy", account="fg", asset="X1", units="1", cash="-1.00"),
+        act(date=t.start, type="split", account="fg", asset="X1", ratio="2"),
+    ]:
+        with pytest.raises(ValueError, match="books only"):
+            value([*acts, wrong], date(2024, 1, 21), **kw)

@@ -37,6 +37,13 @@ from depotbuch.engine.money import MAX_BOOKED, exact_sum
 
 _ZERO = Decimal(0)
 _TRADED = {AssetKind.SECURITY, AssetKind.BOND}
+_FESTGELD_LINES = {
+    ActivityType.DEPOSIT,
+    ActivityType.WITHDRAWAL,
+    ActivityType.INTEREST,
+    ActivityType.FEE,
+    ActivityType.TAX,
+}
 _HUNDRED = Decimal(100)
 
 
@@ -221,8 +228,10 @@ def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.dat
         market.currency(n) != currency for n in named
     ):
         raise ValueError("a cash booking's currency differs from its balance's")
-    if terms is not None and any(a.units for a in bookings):
-        raise ValueError("a Festgeld account holds no units")
+    if terms is not None and any(a.type not in _FESTGELD_LINES for a in bookings):
+        raise ValueError(
+            "a Festgeld account books only deposits, withdrawals, interest, fees and tax"
+        )
     balance = exact_sum(a.cash for a in bookings)
     if deposit:
         if terms is None:
@@ -241,7 +250,5 @@ def _uncredited(bookings: list[Activity], terms: DepositTerms, on: dt.date) -> D
         for a in bookings
         if a.type is ActivityType.INTEREST and a.date >= terms.start
     )
-    accrued = accrued_interest(terms, on)
-    left = accrued - credited
     # A credit rounded to the cent may exceed the accrual: then nothing is left to accrue.
-    return max(left, _ZERO) if accrued >= 0 else min(left, _ZERO)
+    return max(accrued_interest(terms, on) - credited, _ZERO)

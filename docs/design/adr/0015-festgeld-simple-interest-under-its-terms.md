@@ -24,7 +24,8 @@ maturity, which then sits in the balance as well as in the accrual.
 
 We will value a Festgeld from its activities and its account's terms:
 
-- The terms are principal, nominal rate in percent per year, start, maturity, the day
+- The terms are principal, nominal rate in percent per year (not negative: negative interest
+  would be a debit, which no activity books yet), start, maturity, the day
   count (act/365, act/360 or 30E/360) and whether the start day and the maturity day earn
   interest. They are entered once with the account; act/365 with the start day earning and
   the maturity day not is the default.
@@ -36,7 +37,7 @@ We will value a Festgeld from its activities and its account's terms:
 - The value is the account's balance, from its bookings, plus the interest accrued and not
   yet credited (gross: a credit's net amount plus the tax withheld from it). An account with
   deposit terms holds one Festgeld: every booking in it belongs to that balance, whatever
-  asset it names, and a booking that moves units there is an error. A credit rounded to
+  asset it names; it books only deposits, withdrawals, interest, fees and tax. A credit rounded to
   the cent may exceed the accrual; then nothing is left to accrue, and the value never
   falls below the balance. Once a withdrawal on or after maturity pays the deposit out, the value is
   the balance alone: the statement is what happened.
