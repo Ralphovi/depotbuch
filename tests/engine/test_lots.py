@@ -189,3 +189,20 @@ def test_a_conversion_rounds_once_from_the_exact_quotient() -> None:
     rate = Decimal("0.000001370364126214148043810882276")
     booked = FxRates().book_eur(amount, "USD", START, rate)
     assert booked == Decimal("708717120166662459099.59")
+
+
+def test_a_split_beyond_the_unit_bounds_is_rejected_not_rounded() -> None:
+    split = Activity.model_validate(
+        {
+            "date": START + timedelta(days=1),
+            "type": "split",
+            "account": "A",
+            "asset": "X1",
+            "ratio": "1000000",
+        }
+    )
+    with pytest.raises(ValueError, match="split"):
+        build_lots([buy(0, "1000000000", "-1.00"), split], END)
+    tiny = split.model_copy(update={"ratio": Decimal("0.000001")})
+    with pytest.raises(ValueError, match="split"):
+        build_lots([buy(0, "0.000000000001", "-1.00"), tiny], END)

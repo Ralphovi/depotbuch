@@ -13,7 +13,7 @@ Two kinds of number follow different rules:
 from __future__ import annotations
 
 import re
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
 from fractions import Fraction
 from typing import Annotated
 
@@ -84,8 +84,18 @@ def is_units(units: Decimal) -> bool:
 
 
 def is_rate(rate: Decimal) -> bool:
-    """True if `rate` is an FX rate depotbuch can convert with (see `MAX_BOOKED`)."""
-    return MIN_RATE <= rate <= MAX_RATE
+    """True if `rate` is an FX rate or split ratio depotbuch computes with (see
+    `MAX_BOOKED`); a split ratio also has at most `UNIT_PLACES` decimals."""
+    return rate.is_finite() and MIN_RATE <= rate <= MAX_RATE
+
+
+def multiply_units(units: Decimal, ratio: Decimal) -> Decimal:
+    """`units x ratio` exactly, with no rounding to the decimal context. A split's result
+    that leaves the unit bounds (`is_units`) is rejected rather than rounded."""
+    exact = Context(prec=100).multiply(units, ratio)  # bounded operands: < 50 digits
+    if not is_units(exact):
+        raise ValueError("a split leaves units outside 10^15 and 12 decimals")
+    return exact
 
 
 def is_booked(amount: Decimal) -> bool:

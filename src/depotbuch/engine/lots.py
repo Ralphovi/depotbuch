@@ -30,7 +30,7 @@ from decimal import Decimal
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.model import Activity, ActivityType
-from depotbuch.engine.money import share
+from depotbuch.engine.money import multiply_units, share
 
 _ZERO = Decimal(0)
 
@@ -167,7 +167,9 @@ def build_lots(
         key = (a.account, a.asset)
         if a.type is ActivityType.SPLIT:
             ratio = a.ratio if a.ratio is not None else Decimal(1)  # the model requires it
-            queues[key] = deque(replace(lot, units=lot.units * ratio) for lot in queues[key])
+            queues[key] = deque(
+                replace(lot, units=multiply_units(lot.units, ratio)) for lot in queues[key]
+            )
         elif a.units > _ZERO:
             _insert(queues[key], _open(a, rates, costs=costs))
         else:

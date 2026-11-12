@@ -55,7 +55,14 @@ from depotbuch.engine.fx import FxRates
 from depotbuch.engine.holdings import units_held
 from depotbuch.engine.lots import LotBook, Realization, build_lots
 from depotbuch.engine.model import Activity, ActivityType, Asset, AssetKind
-from depotbuch.engine.money import Currency, Dec, book_exact, is_rate, round_cent
+from depotbuch.engine.money import (
+    Currency,
+    Dec,
+    book_exact,
+    is_rate,
+    multiply_units,
+    round_cent,
+)
 
 DEFAULT_ACCOUNT = "depot"
 
@@ -308,7 +315,7 @@ def _vp_deductions(case: Case, asset: str, as_of: date) -> dict[int, list[Decima
             _assess(queue, a.amount or Decimal(0), when.year - 1)
         elif a.type is ActivityType.SPLIT:
             for lot in queue:
-                lot.units *= a.ratio or Decimal(1)
+                lot.units = multiply_units(lot.units, a.ratio or Decimal(1))
                 lot.vp_per_unit /= a.ratio or Decimal(1)
         elif a.units > 0:
             opened = a.acquired if a.type is ActivityType.TRANSFER and a.acquired else a.date

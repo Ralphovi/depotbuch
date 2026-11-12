@@ -172,8 +172,14 @@ class Activity(BaseModel):
             "a transfer moves units and no cash",
         )
         yield (
-            t is ActivityType.SPLIT and (self.ratio is None or self.ratio <= z or cash != z),
-            "a split needs a positive ratio and moves no cash",
+            t is ActivityType.SPLIT
+            and (
+                self.ratio is None
+                or not is_rate(self.ratio)
+                or not is_units(self.ratio)
+                or cash != z
+            ),
+            "a split needs a ratio from 0.000001 to 1000000 (12 decimals) and moves no cash",
         )
         yield (
             t in {ActivityType.EXPENSE, ActivityType.FEE} and cash > z,

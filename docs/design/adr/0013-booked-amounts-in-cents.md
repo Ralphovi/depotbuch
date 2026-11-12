@@ -37,8 +37,9 @@ binary floats at every boundary. Beyond that, two rules apply.
 
 - An activity's booked fields (cash, fees, taxes, a delivery's cost basis, a Vorabpauschale
   amount) MUST be whole cents below 10^15, units MUST be below 10^15 with at most 12
-  decimals, and an FX rate MUST lie between 0.000001 and 1,000,000; anything else is
-  rejected. Within those bounds sums of them fit Python's default 28-digit decimal context.
+  decimals, and an FX rate or split ratio MUST lie between 0.000001 and 1,000,000 (a ratio
+  with at most 12 decimals); anything else is rejected, and a split whose result leaves the
+  unit bounds fails. Within those bounds sums fit Python's default 28-digit decimal context.
 - A share or a conversion is computed as an exact fraction and rounded to the cent once;
   a quotient first rounded to the context's 28 digits could land on the wrong cent.
 - An amount the engine books is rounded to the cent, half up, when it comes into existence:

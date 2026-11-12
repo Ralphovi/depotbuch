@@ -111,3 +111,9 @@ def test_the_largest_booked_amount_is_accepted() -> None:
 def test_units_outside_the_decimal_context_are_rejected(units: str) -> None:
     with pytest.raises(ValidationError, match="units"):
         act(type="buy", asset="X1", units=units, cash="-1.00")
+
+
+@pytest.mark.parametrize("ratio", ["1E+999999", "0.0000001", "1000001", "1.0000000000001"])
+def test_split_ratios_outside_the_bounds_are_rejected(ratio: str) -> None:
+    with pytest.raises(ValidationError, match="ratio"):
+        act(type="split", asset="X1", ratio=ratio)
