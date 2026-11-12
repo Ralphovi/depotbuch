@@ -166,10 +166,16 @@ tracks? Both tools must include the same cash, since idle cash dilutes TTWROR.
 
 Amounts, unit counts, prices and FX rates are `decimal.Decimal` from parsing to output; a
 binary float is rejected at every boundary, not converted (`depotbuch.engine.money`). Each
-amount carries its currency until it is converted to EUR. Intermediate results keep full
-precision. An amount is rounded to the cent, half up, only where a provider rounds it (a
-booked cash amount, a reported tax) and for display and comparison; unit counts, prices and
-FX rates keep the digits the source gives (ADR-0013, Proposed).
+amount carries its currency until it is converted to EUR. Two kinds of number follow
+different rules (ADR-0013, Proposed):
+
+- **Booked amounts** (cash, fees, taxes, a lot's cost, the share of cost or proceeds a sale
+  assigns to a lot, an amount converted to EUR) are in cents. An activity's booked fields
+  must be whole cents; an amount the engine books is rounded half up when it comes into
+  existence; a booked amount is split in cents whose parts add up to it exactly.
+- **Analytical figures** (values, return factors, TTWROR, IZF) keep full precision and are
+  rounded only for display and comparison. Unit counts, prices and FX rates keep the digits
+  the source gives.
 
 ## 8.7 Imports: identity, reporting, nothing silent
 

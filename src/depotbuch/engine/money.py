@@ -1,8 +1,13 @@
-"""Amounts: `decimal.Decimal` from parsing to output, never a binary float.
+"""Amounts: `decimal.Decimal` from parsing to output, never a binary float (ADR-0013).
 
-Intermediate results keep full precision. An amount is rounded to the cent only where a
-provider rounds (a booked cash amount, a reported tax) and for display, half up, as German
-banks round (ADR-0013).
+Two kinds of number follow different rules:
+
+- **Booked amounts** (cash, fees, taxes, a lot's cost, the share of cost or proceeds a sale
+  assigns to a lot, an amount converted to EUR) are ledger entries. Each is in cents,
+  rounded half up when it comes into existence (`book`), and an allocation splits a booked
+  amount into cents that add up to it exactly (`allocate`).
+- **Analytical figures** (values, TTWROR, IZF) keep full precision and are rounded only for
+  display. Units, prices and FX rates keep the digits their source gives.
 """
 
 from __future__ import annotations
@@ -45,6 +50,40 @@ def to_decimal(value: object) -> Decimal:
 def round_cent(amount: Decimal) -> Decimal:
     """Round to the cent, half up."""
     return amount.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+book = round_cent
+"""Book an amount: to the cent, half up, as German banks round."""
+
+
+def is_booked(amount: Decimal) -> bool:
+    """True if `amount` is a whole number of cents."""
+    return amount == amount.quantize(CENT)
+
+
+def share(amount: Decimal, part: Decimal, whole: Decimal) -> Decimal:
+    """The booked share `part / whole` of a booked `amount`: amount x part / whole, to the
+    cent. The rest is `amount - share(...)`, so the two always add up to `amount`."""
+    if whole == 0:
+        raise ValueError("a share of nothing")
+    return book(amount * part / whole)
+
+
+def allocate(amount: Decimal, weights: list[Decimal]) -> list[Decimal]:
+    """Split a booked `amount` in cents, pro rata to `weights`.
+
+    Every part but the last is booked on its own; the last takes what is left, so the parts
+    add up to `amount` exactly.
+    """
+    total = sum(weights, Decimal(0))
+    parts: list[Decimal] = []
+    left = amount
+    for w in weights[:-1]:
+        p = share(amount, w, total)
+        parts.append(p)
+        left -= p
+    parts.append(left)
+    return parts
 
 
 def _currency(code: str) -> str:

@@ -33,7 +33,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from depotbuch.engine.money import Currency, Dec
+from depotbuch.engine.money import Currency, Dec, is_booked
 
 
 class AssetKind(StrEnum):
@@ -139,6 +139,14 @@ class Activity(BaseModel):
             "a cost basis belongs to a delivery in and can't be negative",
         )
         yield self.fx_rate is not None and self.fx_rate <= z, "fx_rate must be positive"
+        yield (
+            not all(
+                is_booked(v)
+                for v in (cash, self.fees, self.taxes, self.cost_basis, self.amount)
+                if v is not None
+            ),
+            "booked amounts (cash, fees, taxes, cost_basis, amount) are whole cents",
+        )
         yield (
             t is ActivityType.BUY and (units <= z or cash > z),
             "a buy adds units and pays cash (units > 0, cash <= 0)",

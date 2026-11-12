@@ -9,11 +9,10 @@ from depotbuch.engine.fx import FxRates, MissingRate
 from depotbuch.engine.holdings import units_held
 from depotbuch.engine.lots import MissingCostBasis, Oversold, build_lots
 from depotbuch.engine.model import Activity
-from depotbuch.engine.money import round_cent
+from depotbuch.engine.money import is_booked
 
 START = date(2024, 1, 1)
 END = date(2024, 12, 31)
-TINY = Decimal("1e-18")
 
 
 def buy(day: int, units: str, cash: str, account: str = "A", **kw: str) -> Activity:
@@ -78,27 +77,27 @@ def test_lots_sum_to_holdings(acts: list[Activity]) -> None:
 
 
 @given(histories())
-def test_every_euro_of_cost_is_either_held_or_realized(acts: list[Activity]) -> None:
+def test_every_cent_of_cost_is_either_held_or_realized(acts: list[Activity]) -> None:
     book = build_lots(acts, END)
     paid = sum((-a.cash for a in acts if a.type == "buy"), Decimal(0))
     closed = sum((r.cost for r in book.realized), Decimal(0))
-    assert abs(book.invested_capital() + closed - paid) < TINY
+    assert book.invested_capital() + closed == paid
+    assert all(is_booked(lot.cost) for lot in book.lots)
 
 
 @given(histories())
-def test_proceeds_are_split_without_loss(acts: list[Activity]) -> None:
+def test_each_sale_books_its_proceeds_exactly(acts: list[Activity]) -> None:
     book = build_lots(acts, END)
-    received = sum((a.cash for a in acts if a.type == "sell"), Decimal(0))
-    assert abs(sum((r.proceeds for r in book.realized), Decimal(0)) - received) < TINY
+    assert all(is_booked(r.proceeds) and is_booked(r.cost) for r in book.realized)
     for sale in (a for a in acts if a.type == "sell"):
         slices = [r for r in book.realized if (r.date, r.account) == (sale.date, sale.account)]
-        assert abs(sum((r.proceeds for r in slices), Decimal(0)) - sale.cash) < TINY
+        assert sum((r.proceeds for r in slices), Decimal(0)) == sale.cash
 
 
-def test_a_half_cent_gain_survives_the_split_across_lots() -> None:
-    """Lots of 1 @ 1.00, 1 @ 1.00 and 2 @ 2.01; selling 3 for 3.01 closes cost
-    1.00 + 1.00 + 1.005 = 3.005, a gain of 0.005, which rounds half up to 0.01. Thirds of
-    3.01 sum to just under 3.01 unless the last slice takes the remainder."""
+def test_a_partial_lot_takes_its_cost_share_in_cents() -> None:
+    """Lots of 1 @ 1.00, 1 @ 1.00 and 2 @ 2.01; selling 3 for 3.01 closes the first two lots
+    and half of the third: 2.01 x 1/2 = 1.005, booked half up as 1.01, leaving the lot
+    exactly 1.00. Cost 1.00 + 1.00 + 1.01 = 3.01, gain 0.00; invested 1.00."""
     acts = [
         buy(0, "1", "-1.00"),
         buy(1, "1", "-1.00"),
@@ -106,8 +105,13 @@ def test_a_half_cent_gain_survives_the_split_across_lots() -> None:
         sell(3, "-3", "3.01"),
     ]
     book = build_lots(acts, END)
-    assert book.realized_gain() == Decimal("0.005")
-    assert round_cent(book.realized_gain()) == Decimal("0.01")
+    assert book.realized_gain() == 0
+    assert book.invested_capital() == Decimal("1.00")
+    assert [r.proceeds for r in book.realized] == [
+        Decimal("1.00"),
+        Decimal("1.00"),
+        Decimal("1.01"),
+    ]
 
 
 def test_oversold_is_rejected_with_its_date() -> None:
@@ -155,5 +159,9 @@ def test_fx_rates_carry_forward_and_never_backward() -> None:
         rates.rate("USD", date(2024, 6, 6))
     assert rates.to_eur(Decimal(120), "USD", date(2024, 6, 7)) == 100
     assert rates.to_eur(Decimal(125), "USD", date(2024, 6, 7), Decimal("1.25")) == 100
+    assert rates.to_eur(Decimal(100), "USD", date(2024, 6, 7), Decimal("3")) != Decimal("33.33")
+    assert rates.book_eur(Decimal(100), "USD", date(2024, 6, 7), Decimal("3")) == Decimal(
+        "33.33"
+    )
     with pytest.raises(ValueError, match="positive"):
         FxRates({"USD": {date(2024, 6, 7): Decimal(0)}})

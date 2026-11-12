@@ -143,10 +143,12 @@ Proposal 0001 leaves these open. This proposal states the intended direction; th
 implements each one records it as a Proposed ADR (rounding in PR 1, bonds in PR 2,
 Vorabpauschale in PR 4), so the decision itself goes through the ADR process.
 
-- **Rounding.** Intermediate results keep full `Decimal` precision. Amounts round to the
-  cent with `ROUND_HALF_UP` only where a provider rounds (a booked cash amount, a reported
-  tax) and for display. Unit counts keep the precision the statement gives. This resolves
-  the open point in architecture §8.6, subject to the cent question below.
+- **Rounding.** Booked amounts (cash, fees, taxes, lot costs and the shares of them a sale
+  takes, converted amounts) are in cents, rounded half up when they come into existence and
+  split in cents that add up exactly. Analytical figures (values, TTWROR, IZF) keep full
+  `Decimal` precision until display. Unit counts keep the precision the statement gives
+  (ADR-0013). This resolves the open point in architecture §8.6, subject to the cent
+  question below.
 - **Vorabpauschale is an activity, not income.** The engine doesn't compute it, since that
   needs the Basiszins and the fund's year-start and year-end prices. It takes the amount from
   the provider's notice. Any tax withheld on it is a tax of that asset (R, negative, for the
@@ -228,8 +230,8 @@ and may change with the engine types.
 ## Open questions
 
 - [ ] **The remaining cents.** FIFO cost reproduces the bank's taxable sale gain to within
-  1–2 cents, in both directions, and no rounding mode (half-up, half-even, down; per lot or
-  per sale) closes the gap. Candidates: the bank's cost per lot is stored with a different
+  1–3 cents, in both directions, and no rounding mode (half-up, half-even, down; per lot or
+  per sale; per-unit cost at 2 to 8 places) or FIFO per custody pool closes the gap. Candidates: the bank's cost per lot is stored with a different
   precision, or reinvested distributions enter the cost basis differently. Until this is
   explained, what tolerance does the private reconciliation allow on realized gains, and
   does the explanation change how depotbuch computes invested capital?

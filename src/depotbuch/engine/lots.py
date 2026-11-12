@@ -13,7 +13,10 @@ the ECB rate for its date.
   cost unchanged. It takes effect at the start of its day, before that day's trades.
 - Bonds are lots like any other, with the nominal amount as units (ADR-0014).
 
-Nothing is rounded here (ADR-0013).
+Costs, proceeds and taxes are booked amounts (ADR-0013): converted to EUR in cents, a
+partial sale takes its lot's cost share in cents and leaves the lot exactly the rest, and a
+sale's proceeds and taxes are split across the lots it closes in cents that add up to the
+booked amounts. Units keep their source precision.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ from decimal import Decimal
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.model import Activity, ActivityType
+from depotbuch.engine.money import share
 
 _ZERO = Decimal(0)
 
@@ -169,7 +173,8 @@ def build_lots(
 
 
 def _eur(a: Activity, amount: Decimal, rates: FxRates) -> Decimal:
-    return rates.to_eur(amount, a.currency, a.date, a.fx_rate)
+    """A booked amount of `a`, booked in EUR."""
+    return rates.book_eur(amount, a.currency, a.date, a.fx_rate)
 
 
 def _open(a: Activity, rates: FxRates, *, costs: bool) -> Lot:
@@ -202,16 +207,16 @@ def _close(queue: deque[Lot], a: Activity, rates: FxRates, *, costs: bool) -> li
     while left > _ZERO:
         lot = queue[0]
         take = min(lot.units, left)
-        cost = lot.cost if take == lot.units else lot.cost * take / lot.units
+        cost = lot.cost if take == lot.units else share(lot.cost, take, lot.units)
         if take == lot.units:
             queue.popleft()
         else:
             queue[0] = replace(lot, units=lot.units - take, cost=lot.cost - cost)
         left -= take
-        # Pro rata by units; the last slice takes the remainder, so the slices add up to
-        # the booked amount exactly and no Decimal residue moves a cent.
-        part = proceeds_left if left == _ZERO else proceeds * take / total
-        tax = taxes_left if left == _ZERO else taxes * take / total
+        # In cents, pro rata by units; the last slice takes the rest, so the slices add up
+        # to the booked proceeds and taxes exactly.
+        part = proceeds_left if left == _ZERO else share(proceeds, take, total)
+        tax = taxes_left if left == _ZERO else share(taxes, take, total)
         proceeds_left -= part
         taxes_left -= tax
         if is_sale:

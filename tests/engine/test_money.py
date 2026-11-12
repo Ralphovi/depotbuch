@@ -5,7 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from depotbuch.engine.money import Money, round_cent, to_decimal
+from depotbuch.engine.money import Money, allocate, is_booked, round_cent, share, to_decimal
 
 
 @pytest.mark.parametrize("value", [1.5, 0.0, True, None, [1], "abc", "NaN", "Infinity"])
@@ -59,3 +59,37 @@ def test_money_validates_currency_and_amount() -> None:
         Money(amount="1.00", currency="usd")  # type: ignore[arg-type]
     with pytest.raises(ValidationError):
         Money(amount=1.0)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("amount", "weights", "parts"),
+    [
+        ("3.01", ["1", "1", "1"], ["1.00", "1.00", "1.01"]),
+        ("10.00", ["1", "2"], ["3.33", "6.67"]),
+        ("0.01", ["1", "1"], ["0.01", "0.00"]),
+        ("-5.00", ["1", "1", "1"], ["-1.67", "-1.67", "-1.66"]),
+    ],
+)
+def test_allocate_books_parts_that_add_up_exactly(
+    amount: str, weights: list[str], parts: list[str]
+) -> None:
+    got = allocate(Decimal(amount), [Decimal(w) for w in weights])
+    assert got == [Decimal(p) for p in parts]
+    assert sum(got) == Decimal(amount)
+
+
+@given(
+    st.decimals(min_value=-(10**6), max_value=10**6, places=2),
+    st.lists(st.decimals(min_value=Decimal("0.00001"), max_value=1000, places=5), min_size=1),
+)
+def test_allocation_is_always_exact_and_in_cents(
+    amount: Decimal, weights: list[Decimal]
+) -> None:
+    parts = allocate(amount, weights)
+    assert sum(parts) == amount
+    assert all(is_booked(p) for p in parts)
+
+
+def test_share_of_nothing_is_refused() -> None:
+    with pytest.raises(ValueError, match="nothing"):
+        share(Decimal(1), Decimal(1), Decimal(0))
