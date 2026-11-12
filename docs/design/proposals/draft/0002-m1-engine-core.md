@@ -94,7 +94,7 @@ cash = "1435.05"          # 1440.00 − 4.95 fees
 fees = "4.95"
 
 [assets.X1]
-currency = "EUR"          # a USD asset would add [fx.USD] with USD per EUR per day, as the ECB quotes it
+currency = "EUR"          # a USD asset adds [fx.USD]: USD per EUR per day, as the ECB quotes it
 
 [prices.X1]               # closes in the asset's currency
 2024-06-28 = "125.00"
@@ -108,7 +108,9 @@ value = "375.00"
 ```
 
 PR 1 defines the format, including currencies (`[assets]`, with EUR as the default) and FX
-rates (`[fx.<currency>]`, per day). Later PRs only add to it. It is the engine's test input
+rates (`[fx.<currency>]`, per day). Rates are stored as the ECB quotes them, units of the
+foreign currency per EUR, so a value in EUR is the amount in that currency divided by the
+rate: a close of 100 USD at 1.20 USD per EUR is 83.33 EUR. Later PRs only add to it. It is the engine's test input
 only; the importers (M2, M5) produce engine types directly.
 
 ### Pull requests, in build order
@@ -118,9 +120,9 @@ rules it implements and runs the private reconciliation for those rules before i
 
 | # | Pull request | Rules (proposal 0001) | Done when |
 |---|---|---|---|
-| 1 | **Types and case harness.** `Money` (Decimal plus currency), asset, account and activity types (pydantic); the rounding policy; the TOML case loader and the private-corpus runner. | *Money and numbers* (arch. §8.6) | A case file loads into engine types and round-trips, including a foreign-currency asset with FX rates; floats are rejected; the private runner skips cleanly without the variable. Tests with captured stdout and stderr feed the runner a failing case, a malformed TOML file and a value that fails validation, and assert that none of the case's amounts appears in the output. |
+| 1 | **Types and case harness.** `Money` (Decimal plus currency), asset, account and activity types (pydantic); the rounding policy; the TOML case loader and the private-corpus runner. | *Money and numbers* (arch. §8.6) | A case file loads into engine types and round-trips, including a foreign-currency asset with FX rates; floats are rejected; the private runner skips cleanly without the variable. The runner refuses a corpus directory that resolves to a path inside the repository checkout, before reading or writing anything. It names cases by their file name, which the owner keeps synthetic (`c01.toml`), and reports parse and validation errors by file, field and error kind, never with the input's text. Tests with captured stdout and stderr feed it a failing case, a malformed TOML file, a value that fails validation and a corpus path inside the checkout, and assert that no string or number from the case file appears in the output. |
 | 2 | **Holdings and FIFO lots.** Buys, sales, deliveries in and out, splits; fees in the cost basis; nominal-quoted bonds; invested capital and realized gain. | *Lots*, *Edge cases* (splits) | Public cases for partial sales across lots, a split, a delivery with stated cost basis; property: lots sum to holdings. Private: units match every holdings statement, and for both sales the pre-tax FIFO gain, less the partial exemption and less any Vorabpauschale already assessed on the units sold (taken from the notices), matches the bank's taxable gain within the tolerance set under *Open questions*. That comparison lives in the private harness; the engine's realized gain stays the after-tax figure 0001 defines. |
-| 3 | **Valuation per asset type.** Security units × close × FX, a bond as nominal × price in percent, cash balances, Festgeld accrual, carry-forward over gaps. | *Valuation by asset type* (arch. §8.2) | Public cases for each asset type and an FX case; private: the value of each position in each holdings statement, from the statement's own price, to the cent. |
+| 3 | **Valuation per asset type.** Security units × close converted to EUR (divided by the ECB rate), a bond as nominal × price in percent, cash balances, Festgeld accrual, carry-forward over gaps. | *Valuation by asset type* (arch. §8.2) | Public cases for each asset type; an FX case whose expected value only holds if the rate is divided, not multiplied; Festgeld cases for each supported day-count convention (actual/365, actual/360, 30/360, held in the account's Festgeld terms along with whether interest accrues on the start day and the maturity day), including a deposit across 29 February and the value on the maturity day itself. Private: the value of each position in each holdings statement, from the statement's own price, to the cent. |
 | 4 | **Income and taxes.** Dividends split across lots by the day before the ex-date; withheld tax; tax attribution to the asset or the provider; Vorabpauschale. | *Lots* (dividends), *Taxes are attributed where they arise* | Public cases for a dividend after a partial sale, one without an ex-date (marked approximate), a year-end tax total on the provider; private: net income per distribution equals the notice. |
 | 5 | **Trade-to-cash matching.** Pairing each investment activity with its cash line on the Verrechnungskonto by provider, amount and a booking date up to 3 business days later; listing what stays unmatched. | *No double counting* | Public cases for a match on the third business day, a near-miss on the fourth, two trades of equal amount, and an unmatched line on each side; property: no cash line is counted twice. |
 | 6 | **Flows: the slice rule.** Classifying every booking into B, S, R or no flow for a given slice. | *Flows: the slice rule* | One public case per row of the classification table in 0001, for each slice the row names. |
@@ -191,10 +193,12 @@ No new untrusted input enters the product: the engine reads typed values from th
 harness. The private corpus is new sensitive data on the developer's machine, holding
 account numbers, names and the full transaction history:
 
-- It lives outside the repository and is named only by an environment variable, so it
-  cannot be committed by accident.
+- It lives outside the repository and is named only by an environment variable. The runner
+  refuses a corpus path inside the checkout, so neither the corpus nor its report can be
+  committed by accident.
 - CI never sets the variable; the runner skips without it.
-- The private runner prints only case names, field names and pass or fail. Expected and
+- The private runner prints only synthetic case file names, field names and pass or fail;
+  parse and validation errors name the file, field and error kind, never the input's text. Expected and
   actual values, and the differences between them, go to a report file inside the corpus
   directory, so a pasted test log or CI output carries no amounts.
 
