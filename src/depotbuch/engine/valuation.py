@@ -22,7 +22,7 @@ import datetime as dt
 from bisect import bisect_right
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Context, Decimal, localcontext
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.lots import build_lots
@@ -38,6 +38,7 @@ from depotbuch.engine.model import (
 from depotbuch.engine.money import MAX_BOOKED, exact_sum, multiply_units
 
 _ZERO = Decimal(0)
+_WIDE = Context(prec=80)
 _TRADED = {AssetKind.SECURITY, AssetKind.BOND}
 _FESTGELD_LINES = {
     ActivityType.DEPOSIT,
@@ -179,7 +180,8 @@ def value(
     doesn't stop it.
     """
     market = _Market(assets, prices, fx or FxRates(), accounts or {})
-    every = [a for a in activities if account is None or a.account == account]
+    everything = list(activities)
+    every = [a for a in everything if account is None or a.account == account]
     scope = [a for a in every if a.date <= on]
     if asset is None:
         own = scope
@@ -190,9 +192,9 @@ def value(
     traded = [a for a in own if not market.is_balance(a)]
     held = [a for a in own if market.is_balance(a)]
     parts: list[Decimal] = []
-    for (acc, held_asset), units in _units(traded, on).items():
+    for (_, held_asset), units in _units(traded, on).items():
         if units:
-            restated = _in_todays_units(units, every, acc, held_asset, on)
+            restated = _in_todays_units(units, _split_schedule(everything, held_asset), on)
             parts.append(_security(market, held_asset, restated, on))
     groups: dict[tuple[str, str], list[Activity]] = {}
     for a in held:
@@ -202,23 +204,28 @@ def value(
     return exact_sum(parts)
 
 
+def _split_schedule(activities: list[Activity], asset: str) -> list[tuple[dt.date, Decimal]]:
+    """The asset's splits, once each: a provider adjusts its closes for the asset as a
+    whole, so a split recorded in any account counts for all. Two different ratios on one
+    day are a conflict."""
+    ratios: dict[dt.date, Decimal] = {}
+    for a in activities:
+        if a.type is ActivityType.SPLIT and a.asset == asset:
+            ratio = a.ratio or Decimal(1)
+            if ratios.setdefault(a.date, ratio) != ratio:
+                raise ValueError("two different splits of one asset on one day")
+    return sorted(ratios.items())
+
+
 def _in_todays_units(
-    units: Decimal, activities: list[Activity], account: str, asset: str, on: dt.date
+    units: Decimal, splits: list[tuple[dt.date, Decimal]], on: dt.date
 ) -> Decimal:
-    """`units` held at the end of `on`, restated by every later split of that position:
+    """`units` held at the end of `on`, restated by every later split of the asset:
     closes are adjusted for splits (architecture §8.2), so a close before a split is per
     unit of today."""
-    for a in sorted(
-        (
-            a
-            for a in activities
-            if a.type is ActivityType.SPLIT
-            and a.date > on
-            and (a.account, a.asset) == (account, asset)
-        ),
-        key=lambda a: a.date,
-    ):
-        units = multiply_units(units, a.ratio or Decimal(1))
+    for when, ratio in splits:
+        if when > on:
+            units = multiply_units(units, ratio)
     return units
 
 
@@ -232,12 +239,13 @@ def _units(activities: list[Activity], on: dt.date) -> dict[tuple[str, str], Dec
 
 
 def _security(market: _Market, asset: str, units: Decimal, on: dt.date) -> Decimal:
-    local = units * market.prices.close(asset, on)
-    if market.kind(asset) is AssetKind.BOND:
-        local /= _HUNDRED
     currency = market.currency(asset)
     rate = market.rates.rate(currency, on)  # a held position needs its rate, even at 0
-    return market.rates.to_eur(local, currency, on, rate)
+    with localcontext(_WIDE):  # units x close can need more than 28 digits
+        local = units * market.prices.close(asset, on)
+        if market.kind(asset) is AssetKind.BOND:
+            local /= _HUNDRED
+        return market.rates.to_eur(local, currency, on, rate)
 
 
 def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.date) -> Decimal:

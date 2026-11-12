@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Context, Decimal
 from typing import Any
 
 import pytest
@@ -260,3 +260,29 @@ def test_a_festgeld_asset_slice_knows_the_account_from_its_whole_history() -> No
         acts, date(2024, 1, 11), assets={}, prices=Prices(), accounts=accounts, asset="FG"
     )
     assert got == Decimal("10002.00")
+
+
+def test_a_split_in_another_account_restates_units_too() -> None:
+    """Account A sold out before the split, so only B records it; A's day before the split
+    is still valued in today's units against the adjusted close."""
+    acts = [
+        act(type="buy", account="A", asset="X1", units="1", cash="-90.00"),
+        act(type="buy", account="B", asset="X1", units="1", cash="-90.00"),
+        act(date=date(2024, 6, 5), type="sell", account="A", asset="X1", units="-1", cash="1"),
+        act(date=date(2024, 6, 10), type="split", account="B", asset="X1", ratio="2"),
+    ]
+    prices = Prices({"X1": {D: Decimal("50.00")}})
+    assert value(acts, D, assets={}, prices=prices, account="A") == Decimal("100.00")
+    clash = act(date=date(2024, 6, 10), type="split", account="A", asset="X1", ratio="3")
+    with pytest.raises(ValueError, match="two different splits"):
+        value([*acts, clash], D, assets={}, prices=prices)
+
+
+def test_a_large_position_is_valued_without_rounding() -> None:
+    units, close = (
+        Decimal("999999999999999.123456789012"),
+        Decimal("999999999999999.987654321098"),
+    )
+    acts = [act(type="buy", asset="X1", units=str(units), cash="-1.00")]
+    got = value(acts, D, assets={}, prices=Prices({"X1": {D: close}}))
+    assert got == Context(prec=80).multiply(units, close)
