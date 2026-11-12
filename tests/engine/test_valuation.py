@@ -1,5 +1,6 @@
 from datetime import date, timedelta
-from decimal import Context, Decimal, localcontext
+from decimal import ROUND_HALF_UP, Context, Decimal, localcontext
+from fractions import Fraction
 from typing import Any
 
 import pytest
@@ -7,6 +8,7 @@ from pydantic import ValidationError
 
 from depotbuch.engine.fx import MissingRate
 from depotbuch.engine.model import Account, Activity, Asset, AssetKind, DayCount, DepositTerms
+from depotbuch.engine.money import book_exact
 from depotbuch.engine.valuation import (
     MissingPrice,
     MissingTerms,
@@ -278,14 +280,16 @@ def test_a_split_in_another_account_restates_units_too() -> None:
         value([*acts, clash], D, assets={}, prices=prices)
 
 
-def test_a_large_position_is_valued_without_rounding() -> None:
+def test_a_large_position_is_rounded_once_from_its_exact_value() -> None:
     units, close = (
         Decimal("999999999999999.123456789012"),
         Decimal("999999999999999.987654321098"),
     )
     acts = [act(type="buy", asset="X1", units=str(units), cash="-1.00")]
     got = value(acts, D, assets={}, prices=Prices({"X1": {D: close}}))
-    assert got == Context(prec=80).multiply(units, close)
+    assert got == book_exact(Fraction(units) * Fraction(close))
+    wide = Context(prec=80, rounding=ROUND_HALF_UP)
+    assert got == wide.quantize(wide.multiply(units, close), Decimal("0.01"))
 
 
 def test_a_value_does_not_depend_on_the_callers_decimal_context() -> None:

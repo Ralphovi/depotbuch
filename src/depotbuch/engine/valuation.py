@@ -1,7 +1,9 @@
 """Valuation per asset type (proposal 0001, *Valuation by asset type*; architecture §8.2).
 
 The value of a slice on a day is the sum of its positions' values at the end of that day,
-in EUR at full precision (an analytical figure, ADR-0013):
+in EUR. Each position's value is computed exactly and rounded to the cent once, half up,
+and the total is the sum of those cents, as a bank's holdings statement adds it up: where
+the engine and a statement could differ by a cent, the statement's way wins (ADR-0013).
 
 - A security: units x close, divided by the ECB rate for a foreign currency.
 - A bond: nominal x price in percent / 100, converted the same way (ADR-0014).
@@ -23,6 +25,7 @@ from bisect import bisect_right
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Context, Decimal, localcontext
+from fractions import Fraction
 
 from depotbuch.engine.fx import FxRates
 from depotbuch.engine.lots import build_lots
@@ -35,7 +38,7 @@ from depotbuch.engine.model import (
     DayCount,
     DepositTerms,
 )
-from depotbuch.engine.money import MAX_BOOKED, exact_sum, multiply_units
+from depotbuch.engine.money import MAX_BOOKED, book_exact, exact_sum, multiply_units
 
 _ZERO = Decimal(0)
 _WIDE = Context(prec=80)
@@ -47,7 +50,6 @@ _FESTGELD_LINES = {
     ActivityType.FEE,
     ActivityType.TAX,
 }
-_HUNDRED = Decimal(100)
 
 
 class MissingPrice(LookupError):
@@ -115,11 +117,11 @@ def interest_days(terms: DepositTerms, on: dt.date) -> int:
     return _days(terms.day_count, first, last + dt.timedelta(days=1))
 
 
-def accrued_interest(terms: DepositTerms, on: dt.date) -> Decimal:
-    """Simple interest on the principal for the days earned by the end of `on`, at full
-    precision."""
-    days = Decimal(interest_days(terms, on))
-    return terms.principal * terms.rate / _HUNDRED * days / _YEAR[terms.day_count]
+def accrued_interest(terms: DepositTerms, on: dt.date) -> Fraction:
+    """Simple interest on the principal for the days earned by the end of `on`, exactly."""
+    days = interest_days(terms, on)
+    yearly = Fraction(terms.principal) * Fraction(terms.rate) / 100
+    return yearly * days / _YEAR[terms.day_count]
 
 
 @dataclass(frozen=True)
@@ -171,7 +173,8 @@ def value(
     asset: str | None = None,
     account: str | None = None,
 ) -> Decimal:
-    """The value in EUR of the positions in the slice at the end of `on`.
+    """The value in EUR of the positions in the slice at the end of `on`: each position
+    booked to the cent, then summed.
 
     An asset that isn't in `assets` is an EUR security. A booking without an asset
     (deposit, withdrawal, interest, fee, tax) belongs to its account's own balance: a
@@ -179,7 +182,7 @@ def value(
     out. Only the slice's activities are replayed, so a problem in another position
     doesn't stop it.
     """
-    with localcontext(_WIDE):  # values at full precision: no step rounds at 28 digits
+    with localcontext(_WIDE):  # no step on units or balances rounds at 28 digits
         return _value(
             list(activities),
             on,
@@ -206,7 +209,7 @@ def _value(
         own = [a for a in scope if a.asset == asset or a.account in festgeld]
     traded = [a for a in own if not market.is_balance(a)]
     held = [a for a in own if market.is_balance(a)]
-    parts: list[Decimal] = []
+    parts: list[Fraction] = []
     for (_, held_asset), units in _units(traded, on).items():
         if units:
             restated = _in_todays_units(units, _split_schedule(everything, held_asset), on)
@@ -216,7 +219,7 @@ def _value(
         groups.setdefault(market.balance_key(a), []).append(a)
     for (acc, _), bookings in sorted(groups.items()):
         parts.append(_balance(market, bookings, acc, on))
-    return exact_sum(parts)
+    return exact_sum(book_exact(p) for p in parts)
 
 
 def _split_schedule(activities: list[Activity], asset: str) -> list[tuple[dt.date, Decimal]]:
@@ -253,16 +256,16 @@ def _units(activities: list[Activity], on: dt.date) -> dict[tuple[str, str], Dec
     return out
 
 
-def _security(market: _Market, asset: str, units: Decimal, on: dt.date) -> Decimal:
+def _security(market: _Market, asset: str, units: Decimal, on: dt.date) -> Fraction:
     currency = market.currency(asset)
     rate = market.rates.rate(currency, on)  # a held position needs its rate, even at 0
-    local = units * market.prices.close(asset, on)
+    local = Fraction(units) * Fraction(market.prices.close(asset, on))
     if market.kind(asset) is AssetKind.BOND:
-        local /= _HUNDRED
-    return market.rates.to_eur(local, currency, on, rate)
+        local /= 100
+    return local / Fraction(rate)
 
 
-def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.date) -> Decimal:
+def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.date) -> Fraction:
     """A cash or deposit position: one asset in one account, or the account's own balance
     (bookings without an asset)."""
     terms = market.terms(account)
@@ -277,23 +280,23 @@ def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.dat
         raise ValueError(
             "a Festgeld account books only deposits, withdrawals, interest, fees and tax"
         )
-    balance = exact_sum(a.cash for a in bookings)
+    balance = Fraction(exact_sum(a.cash for a in bookings))
     if deposit:
         if terms is None:
             raise MissingTerms(account)
         balance += _uncredited(bookings, terms, on)
-    return market.rates.to_eur(balance, currency, on)
+    return balance / Fraction(market.rates.rate(currency, on)) if balance else balance
 
 
-def _uncredited(bookings: list[Activity], terms: DepositTerms, on: dt.date) -> Decimal:
+def _uncredited(bookings: list[Activity], terms: DepositTerms, on: dt.date) -> Fraction:
     """Interest accrued but not yet credited. Nothing once the bank has paid the deposit
     out: a withdrawal on or after maturity closes it, and its balance is the value."""
     if any(a.type is ActivityType.WITHDRAWAL and a.date >= terms.maturity for a in bookings):
-        return _ZERO
+        return Fraction(0)
     credited = exact_sum(  # gross: the net credit plus the tax withheld from it
         a.cash + a.taxes
         for a in bookings
         if a.type is ActivityType.INTEREST and a.date >= terms.start
     )
     # A credit rounded to the cent may exceed the accrual: then nothing is left to accrue.
-    return max(accrued_interest(terms, on) - credited, _ZERO)
+    return max(accrued_interest(terms, on) - Fraction(credited), Fraction(0))

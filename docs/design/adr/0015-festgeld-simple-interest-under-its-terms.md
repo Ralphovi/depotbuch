@@ -41,8 +41,9 @@ We will value a Festgeld from its activities and its account's terms:
   the cent may exceed the accrual; then nothing is left to accrue, and the value never
   falls below the balance. Once a withdrawal on or after maturity pays the deposit out, the value is
   the balance alone: the statement is what happened.
-- The accrual is an analytical figure at full precision (ADR-0013); the interest the bank
-  credits is a booked amount, in cents.
+- The accrual is computed exactly and enters the deposit's value, which is rounded to the
+  cent once like any position's (ADR-0013); the interest the bank credits is a booked
+  amount, in cents.
 
 We reject compounding within a term and day counts beyond these three until a real deposit
 needs them.

@@ -93,8 +93,9 @@ provider, account, asset class or single asset.
 
 The last close or valuation is carried forward over gaps; a held asset is never valued at
 zero for lack of data: with no close or rate on or before the day, valuation fails
-(`MissingPrice`, `MissingRate`) rather than counting it as zero. A value is an analytical
-figure at full precision (ADR-0013); `engine/valuation.py` computes it per slice. An activity is converted at the broker's rate when the statement gives
+(`MissingPrice`, `MissingRate`) rather than counting it as zero. Each position's value is
+computed exactly and rounded to the cent once; a slice's value is the sum of those cents,
+as a holdings statement adds up its total (ADR-0013). `engine/valuation.py` computes it. An activity is converted at the broker's rate when the statement gives
 one, otherwise at the ECB rate for that day. Foreign-currency assets include the FX effect.
 
 ## 8.3 Lots and FIFO
@@ -178,7 +179,10 @@ different rules (ADR-0013, Proposed):
   between 10^-6 and 10^6, so sums fit the default decimal context); a share or conversion
   is computed exactly and rounded once; an amount the engine books is rounded half up when it comes into
   existence; a booked amount is split in cents whose parts add up to it exactly.
-- **Analytical figures** (values, return factors, TTWROR, IZF) keep full precision and are
+- **Values** are rounded where a holdings statement rounds them: each position to the cent
+  from its exact value, and a total as the sum of those cents. Where depotbuch and a
+  statement could differ by a cent, the statement wins.
+- **Analytical figures** (return factors, TTWROR, IZF) keep full precision and are
   rounded only for display and comparison. Unit counts, prices and FX rates keep the digits
   the source gives.
 
