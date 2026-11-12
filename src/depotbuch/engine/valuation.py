@@ -160,14 +160,17 @@ def value(
     doesn't stop it.
     """
     market = _Market(assets, prices, fx or FxRates(), accounts or {})
+    every = list(activities)
     own = [
         a
-        for a in activities
+        for a in every
         if a.date <= on
         and (asset is None or a.asset == asset)
         and (account is None or a.account == account)
     ]
     parts: list[Decimal] = []
+    if asset is not None:
+        own += _festgeld_lines(every, own, market, on)
     traded = [a for a in own if a.asset and market.kind(a.asset) in _TRADED]
     for (_, held_asset), units in _units(traded, on).items():
         if units:
@@ -179,6 +182,15 @@ def value(
     for (acc, _), bookings in sorted(groups.items()):
         parts.append(_balance(market, bookings, acc, on))
     return exact_sum(parts)
+
+
+def _festgeld_lines(
+    activities: list[Activity], own: list[Activity], market: _Market, on: dt.date
+) -> list[Activity]:
+    """For a slice by asset: the bookings without an asset in the Festgeld accounts where
+    the asset is booked, since such an account holds one balance (`balance_key`)."""
+    festgeld = {a.account for a in own if market.terms(a.account) is not None}
+    return [a for a in activities if not a.asset and a.date <= on and a.account in festgeld]
 
 
 def _units(activities: list[Activity], on: dt.date) -> dict[tuple[str, str], Decimal]:

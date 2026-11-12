@@ -198,6 +198,9 @@ def test_a_festgeld_is_one_balance_whatever_its_bookings_name() -> None:
     kw: dict[str, Any] = {"assets": assets, "prices": Prices(), "accounts": accounts}
     assert value(acts, date(2024, 1, 21), **kw) == Decimal("10010.00")
     assert value(acts, date(2024, 1, 22), **kw) == 0
+    assert value(acts, date(2024, 1, 21), asset="FG", **kw) == Decimal("10010.00")
+    assert value(acts, date(2024, 1, 22), asset="FG", **kw) == 0
+    assert value(iter(acts), date(2024, 1, 22), asset="FG", **kw) == 0
 
 
 def test_a_credit_rounded_up_leaves_nothing_to_accrue() -> None:
