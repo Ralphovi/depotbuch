@@ -20,6 +20,7 @@ Run it only on code you wrote or have reviewed: the code under test sees the rea
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tomllib
@@ -57,14 +58,22 @@ def _run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
             capture_output=True,
             text=True,
             check=False,
+            # Untranslated messages, so "not a git repository" can be recognized.
+            env={**os.environ, "LC_ALL": "C", "LANGUAGE": "C"},
         )
     except OSError:
         raise LocationUnknown from None
 
 
-def _git(cwd: Path, *args: str) -> str | None:
+def _git(cwd: Path, *args: str, miss: int | None = None) -> str | None:
+    """Run git and return its output. Exit code `miss` means "no" and returns None; any
+    other failure raises LocationUnknown, so no probe can fail open."""
     r = _run_git(cwd, *args)
-    return r.stdout.strip() if r.returncode == 0 else None
+    if r.returncode == 0:
+        return r.stdout.strip()
+    if miss is not None and r.returncode == miss:
+        return None
+    raise LocationUnknown
 
 
 def _worktree(path: Path) -> Path | None:
@@ -99,8 +108,17 @@ def _roots(top: Path) -> set[str]:
     return set(out.split()) if out else set()
 
 
+def _head(top: Path) -> str | None:
+    """HEAD's commit, or None in a repository without commits."""
+    return _git(top, "rev-parse", "--verify", "--quiet", "HEAD", miss=1)
+
+
 def _has_commit(top: Path, sha: str | None) -> bool:
-    return bool(sha) and _git(top, "cat-file", "-e", f"{sha}^{{commit}}") is not None
+    return (
+        bool(sha)
+        and _git(top, "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}", miss=1)
+        is not None
+    )
 
 
 def _related(top: Path, own_top: Path) -> bool:
@@ -108,8 +126,8 @@ def _related(top: Path, own_top: Path) -> bool:
     return (
         top == own_top
         or bool(_roots(top) & _roots(own_top))
-        or _has_commit(own_top, _git(top, "rev-parse", "HEAD"))
-        or _has_commit(top, _git(own_top, "rev-parse", "HEAD"))
+        or _has_commit(own_top, _head(top))
+        or _has_commit(top, _head(own_top))
     )
 
 

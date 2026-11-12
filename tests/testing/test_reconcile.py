@@ -186,6 +186,22 @@ def test_refuses_when_git_is_unavailable(
     assert not (c / REPORT).exists()
 
 
+def test_works_under_a_translated_locale(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("LC_ALL", "de_DE.UTF-8")
+    monkeypatch.setenv("LANGUAGE", "de")
+    c = corpus(tmp_path / "c", **{"c01.toml": GOOD.replace("{units}", "17.123")})
+    assert run(str(c), own_repo=None) == 0
+
+
+def test_refuses_when_a_later_probe_fails(tmp_path: Path) -> None:
+    own = make_repo(tmp_path / "own")
+    other = make_repo(tmp_path / "other")
+    (other / ".git" / "refs" / "heads" / "broken").write_text("not-a-sha\n", encoding="utf-8")
+    assert run(str(corpus(other / "private")), own_repo=own) == 2
+
+
 def test_an_unreadable_file_does_not_stop_the_rest(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
