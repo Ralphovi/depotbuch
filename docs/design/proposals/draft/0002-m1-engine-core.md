@@ -116,7 +116,9 @@ only; the importers (M2, M5) produce engine types directly.
 ### Pull requests, in build order
 
 Each row is one issue, one branch and one pull request. Every PR adds public cases for the
-rules it implements and runs the private reconciliation for those rules before it is posted.
+rules it implements and runs the private reconciliation for those rules: before it is posted when the owner or
+the owner's agent wrote it, and for a contributor's PR after the owner has reviewed its code
+and before it is merged.
 
 | # | Pull request | Rules (proposal 0001) | Done when |
 |---|---|---|---|
@@ -199,9 +201,8 @@ account numbers, names and the full transaction history:
   refuses a corpus path inside any worktree of the repository, so neither the corpus nor its
   report can be committed by accident.
 - The corpus is exposed only to code the owner trusts: branches the owner or the owner's
-  agent wrote, or that have been reviewed. It is never run against a contributor's branch
-  before that branch is merged, since the code under test sees the real values and could
-  print or send them. Where the platform allows, the run has no network access
+  agent wrote, or that have been reviewed. It is never run against code the owner hasn't
+  reviewed, since the code under test sees the real values and could print or send them. Where the platform allows, the run has no network access
   (`unshare -rn` on Linux).
 - CI never sets the variable; the runner skips without it.
 - The private runner prints only synthetic case file names, field names and pass or fail;
