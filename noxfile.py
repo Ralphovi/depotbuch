@@ -96,6 +96,20 @@ def docs(session: nox.Session) -> None:
     session.run("python3", "-I", ".github/docs-check/adr_index.py", external=True)
 
 
+@nox.session(python=None)
+def reconcile(session: nox.Session) -> None:
+    """Private reconciliation against a real history: `nox -s reconcile -- <corpus path>`.
+
+    Not part of the gate and never run in CI. The corpus path is taken only from the
+    command line, so an ordinary test run never learns where the corpus is. Run it only on
+    code you wrote or have reviewed (proposal 0002, *Security impact*).
+    """
+    if len(session.posargs) != 1:
+        session.error("usage: nox -s reconcile -- <corpus path>")
+    session.install("-e", ".")
+    session.run("python", "-I", "-m", "depotbuch.testing.reconcile", *session.posargs)
+
+
 @nox.session(python=None, venv_backend="none")
 def gate(session: nox.Session) -> None:
     """THE gate: everything CI requires, in one command.

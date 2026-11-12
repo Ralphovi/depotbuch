@@ -1,0 +1,54 @@
+name = "units-across-accounts"
+rule = "proposal 0001, Domain model: a position is an asset across accounts"
+working = """
+Account depot: buy 10, buy 5, sell 12 -> 3 units at the end of 2024-06-03.
+Account depot2: buy 4 -> 4 units.
+Across both accounts on 2024-06-28: 3 + 4 = 7.
+On 2024-02-01 only the first buy has happened: 10 in depot.
+"""
+
+[[activities]]
+date = 2024-01-02
+type = "buy"
+asset = "X1"
+units = "10"
+cash = "-1004.95"
+fees = "4.95"
+
+[[activities]]
+date = 2024-03-01
+type = "buy"
+asset = "X1"
+units = "5"
+cash = "-555.00"
+
+[[activities]]
+date = 2024-03-15
+type = "buy"
+account = "depot2"
+asset = "X1"
+units = "4"
+cash = "-450.00"
+
+[[activities]]
+date = 2024-06-03
+type = "sell"
+asset = "X1"
+units = "-12"
+cash = "1435.05"
+fees = "4.95"
+
+[[expect]]
+as_of = 2024-02-01
+slice = { asset = "X1" }
+units = "10"
+
+[[expect]]
+as_of = 2024-06-28
+slice = { asset = "X1", account = "depot" }
+units = "3"
+
+[[expect]]
+as_of = 2024-06-28
+slice = { asset = "X1" }
+units = "7"
