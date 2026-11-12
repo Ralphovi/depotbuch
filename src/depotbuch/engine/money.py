@@ -78,11 +78,18 @@ def book_exact(value: Fraction) -> Decimal:
 
 
 def is_units(units: Decimal) -> bool:
-    """True if `units` is a unit count depotbuch computes with exactly (see `MAX_BOOKED`)."""
-    _, _, exponent = units.as_tuple()
-    return (
-        isinstance(exponent, int) and exponent >= -UNIT_PLACES and units.copy_abs() < MAX_BOOKED
-    )
+    """True if `units` is a unit count depotbuch computes with exactly (see `MAX_BOOKED`):
+    at most `UNIT_PLACES` significant decimals (trailing zeros don't count), read from the
+    digits so no decimal context limits it."""
+    _, digits, exponent = units.as_tuple()
+    if not isinstance(exponent, int):  # NaN or infinity
+        return False
+    significant = len(digits)
+    while significant > 1 and digits[significant - 1] == 0:
+        significant -= 1
+    places = -exponent - (len(digits) - significant)
+    zero = not any(digits)
+    return (zero or places <= UNIT_PLACES) and units.copy_abs() < MAX_BOOKED
 
 
 def is_rate(rate: Decimal) -> bool:

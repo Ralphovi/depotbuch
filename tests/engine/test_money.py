@@ -11,6 +11,7 @@ from depotbuch.engine.money import (
     allocate,
     book_exact,
     is_booked,
+    is_units,
     round_cent,
     share,
     to_decimal,
@@ -146,3 +147,19 @@ def test_a_share_is_rounded_once_from_its_exact_value() -> None:
     assert book_exact(Fraction(1, 200)) == Decimal("0.01")
     assert book_exact(Fraction(-1, 200)) == Decimal("-0.01")
     assert book_exact(Fraction(1, 200) - Fraction(1, 10**40)) == Decimal("0.00")
+
+
+@pytest.mark.parametrize(
+    ("units", "ok"),
+    [
+        ("2.4691357802460", True),
+        ("1.0000000000000000", True),
+        ("0E-30", True),
+        ("0.0000000000001", False),
+        ("123.4560000000001", False),
+        ("1E14", True),
+        ("1E15", False),
+    ],
+)
+def test_units_count_significant_decimals_only(units: str, ok: bool) -> None:
+    assert is_units(Decimal(units)) is ok

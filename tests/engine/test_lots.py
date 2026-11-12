@@ -206,3 +206,17 @@ def test_a_split_beyond_the_unit_bounds_is_rejected_not_rounded() -> None:
     tiny = split.model_copy(update={"ratio": Decimal("0.000001")})
     with pytest.raises(ValueError, match="split"):
         build_lots([buy(0, "0.000000000001", "-1.00"), tiny], END)
+
+
+def test_a_split_result_with_trailing_zeros_is_within_the_bounds() -> None:
+    split = Activity.model_validate(
+        {
+            "date": START + timedelta(days=1),
+            "type": "split",
+            "account": "A",
+            "asset": "X1",
+            "ratio": "2.0",
+        }
+    )
+    book = build_lots([buy(0, "1.234567890123", "-1.00"), split], END)
+    assert book.units(asset="X1") == Decimal("2.469135780246")
