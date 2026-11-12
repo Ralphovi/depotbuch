@@ -17,8 +17,9 @@ backend stores the data and serves a JSON API (Django Ninja) to a TypeScript fro
 `depot` CLI runs the same engine as Django management commands. It runs as one container on
 the owner's homelab, behind TLS and a login.
 
-Today the repository holds the project scaffold only; the components above are being built
-(architecture §9).
+Today the repository holds the scaffold, the engine's types and the case harness with its
+private reconciliation runner (`src/depotbuch/testing/`); the other components are being
+built (architecture §9).
 
 ## Where untrusted input enters
 
@@ -63,9 +64,13 @@ PR number from the payload and posts a fixed comment. A change that adds an
 
 In order: the web project and API (`src/depotbuch/web/`), the import adapters
 (`src/depotbuch/adapters/`), the portfolio app's import and identity logic
-(`src/depotbuch/web/portfolio/`), the engine (`src/depotbuch/engine/`).
+(`src/depotbuch/web/portfolio/`), the engine (`src/depotbuch/engine/`), and the private
+reconciliation runner (`src/depotbuch/testing/reconcile.py`), which reads real statements:
+a way to make it write corpus data inside a repository or print it to its output is in
+scope.
 
-Lower priority: the CLI, the HTML report, test tools, build automation.
+Lower priority: the CLI, the HTML report, the public test cases and other test code, build
+automation.
 
 Out of scope: generated code (the front end's API client); third-party code (report a
 dependency bug only if this project's use of it is what makes it exploitable).
