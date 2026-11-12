@@ -127,6 +127,18 @@ class _Market:
         spec = self.assets.get(asset)
         return spec.currency if spec else "EUR"
 
+    def terms(self, account: str) -> DepositTerms | None:
+        spec = self.accounts.get(account)
+        return spec.deposit if spec else None
+
+    def balance_key(self, a: Activity) -> tuple[str, str]:
+        """Which balance a cash booking belongs to: in a Festgeld account (one with deposit
+        terms) the account's one deposit, whatever asset the booking names; elsewhere the
+        named cash asset, or the account's own balance without one."""
+        if self.terms(a.account) is not None:
+            return (a.account, "")
+        return (a.account, a.asset or "")
+
 
 def value(
     activities: Iterable[Activity],
@@ -161,8 +173,10 @@ def value(
         if units:
             parts.append(_security(market, held_asset, units, on))
     held = [a for a in own if not a.asset or market.kind(a.asset) not in _TRADED]
-    for acc, cash_asset in sorted({(a.account, a.asset or "") for a in held}):
-        bookings = [a for a in held if (a.account, a.asset or "") == (acc, cash_asset)]
+    groups: dict[tuple[str, str], list[Activity]] = {}
+    for a in held:
+        groups.setdefault(market.balance_key(a), []).append(a)
+    for (acc, _), bookings in sorted(groups.items()):
         parts.append(_balance(market, bookings, acc, on))
     return exact_sum(parts)
 
@@ -186,14 +200,13 @@ def _security(market: _Market, asset: str, units: Decimal, on: dt.date) -> Decim
 def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.date) -> Decimal:
     """A cash or deposit position: one asset in one account, or the account's own balance
     (bookings without an asset)."""
-    asset = bookings[0].asset
-    spec = market.accounts.get(account)
-    terms = spec.deposit if spec else None
-    if asset:
-        currency, deposit = market.currency(asset), market.kind(asset) is AssetKind.DEPOSIT
-    else:
-        currency, deposit = bookings[0].currency, terms is not None
-    if any(a.currency != currency for a in bookings):
+    terms = market.terms(account)
+    named = {a.asset for a in bookings if a.asset}
+    deposit = terms is not None or any(market.kind(n) is AssetKind.DEPOSIT for n in named)
+    currency = bookings[0].currency
+    if any(a.currency != currency for a in bookings) or any(
+        market.currency(n) != currency for n in named
+    ):
         raise ValueError("a cash booking's currency differs from its balance's")
     balance = exact_sum(a.cash for a in bookings)
     if deposit:
@@ -213,4 +226,7 @@ def _uncredited(bookings: list[Activity], terms: DepositTerms, on: dt.date) -> D
         for a in bookings
         if a.type is ActivityType.INTEREST and a.date >= terms.start
     )
-    return accrued_interest(terms, on) - credited
+    accrued = accrued_interest(terms, on)
+    left = accrued - credited
+    # A credit rounded to the cent may exceed the accrual: then nothing is left to accrue.
+    return max(left, _ZERO) if accrued >= 0 else min(left, _ZERO)

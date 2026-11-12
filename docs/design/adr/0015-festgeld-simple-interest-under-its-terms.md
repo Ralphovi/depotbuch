@@ -34,7 +34,10 @@ We will value a Festgeld from its activities and its account's terms:
   earning day up to it has earned what the convention counts from it to the next day, so
   the count never goes down; after maturity it stops.
 - The value is the account's balance, from its bookings, plus the interest accrued and not
-  yet credited (gross: a credit's net amount plus the tax withheld from it). Once a withdrawal on or after maturity pays the deposit out, the value is
+  yet credited (gross: a credit's net amount plus the tax withheld from it). An account with
+  deposit terms holds one Festgeld, whatever asset its bookings name. A credit rounded to
+  the cent may exceed the accrual; then nothing is left to accrue, and the value never
+  falls below the balance. Once a withdrawal on or after maturity pays the deposit out, the value is
   the balance alone: the statement is what happened.
 - The accrual is an analytical figure at full precision (ADR-0013); the interest the bank
   credits is a booked amount, in cents.

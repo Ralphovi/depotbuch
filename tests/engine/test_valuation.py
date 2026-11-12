@@ -182,3 +182,32 @@ def test_interest_days_never_decrease(convention: DayCount, flags: tuple[bool, b
         )
         days = [interest_days(t, start + timedelta(days=i)) for i in range(-2, 400)]
         assert days == sorted(days)
+
+
+def test_a_festgeld_is_one_balance_whatever_its_bookings_name() -> None:
+    """Placement names the deposit asset, the statement's credit and payout don't: one
+    balance, accrued once, and closed by the payout."""
+    t = terms()
+    acts = [
+        act(date=t.start, type="deposit", account="fg", asset="FG", cash="10000.00"),
+        act(date=date(2024, 1, 22), type="interest", account="fg", cash="10.00"),
+        act(date=date(2024, 1, 22), type="withdrawal", account="fg", cash="-10010.00"),
+    ]
+    assets = {"FG": Asset(id="FG", kind=AssetKind.DEPOSIT)}
+    accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
+    kw: dict[str, Any] = {"assets": assets, "prices": Prices(), "accounts": accounts}
+    assert value(acts, date(2024, 1, 21), **kw) == Decimal("10010.00")
+    assert value(acts, date(2024, 1, 22), **kw) == 0
+
+
+def test_a_credit_rounded_up_leaves_nothing_to_accrue() -> None:
+    """One day at 2 % act/365 on 100.00 earns 0.005479..., credited as 0.01: the value is the
+    booked 100.01, not less."""
+    t = terms(principal="100.00", rate="2", maturity=date(2024, 1, 11))
+    acts = [
+        act(date=t.start, type="deposit", account="fg", cash="100.00"),
+        act(date=t.start, type="interest", account="fg", cash="0.01"),
+    ]
+    accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
+    got = value(acts, t.start, assets={}, prices=Prices(), accounts=accounts)
+    assert got == Decimal("100.01")
