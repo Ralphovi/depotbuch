@@ -165,6 +165,29 @@ taxable_gain = "164.55"
 """
 
 
+@pytest.mark.parametrize(
+    ("split_date", "account", "applies"),
+    [
+        ("2025-03-01", "depot", False),  # after the sale: irrelevant
+        ("2023-03-01", "other", False),  # another account: irrelevant
+        ("2023-03-01", "depot", True),  # between the notice and the sale
+    ],
+)
+def test_only_a_relevant_split_blocks_the_vorabpauschale_deduction(
+    tmp_path: Path, split_date: str, account: str, applies: bool
+) -> None:
+    split = (
+        f'\n[[activities]]\ndate = {split_date}\ntype = "split"\naccount = "{account}"\n'
+        'asset = "F1"\nratio = "1"\n'
+    )
+    case = load_case(write(tmp_path, VP_CASE + split))
+    if applies:
+        with pytest.raises(NotImplementedError):
+            check(case)
+    else:
+        assert all(r.ok for r in check(case))
+
+
 def test_taxable_gain_deducts_the_vorabpauschale_of_the_units_sold(tmp_path: Path) -> None:
     """The 2023 notice covers 2022: lot 1 (bought 2021) carries all of it, lot 2 (bought in
     April 2022) 9/12. Weight 10 x 1 + 10 x 0.75 = 17.5, so 19.00 is 19/17.5 per unit of

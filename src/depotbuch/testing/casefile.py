@@ -280,14 +280,16 @@ def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
         for a in case.activities
         if a.type is ActivityType.VORABPAUSCHALE and a.asset == asset and a.amount
     ]
-    if notices and any(
-        a.type is ActivityType.SPLIT and a.asset == asset for a in case.activities
-    ):
-        raise NotImplementedError("Vorabpauschale per unit across a split")
+    splits = [a for a in case.activities if a.type is ActivityType.SPLIT and a.asset == asset]
     deducted = Decimal(0)
     for r in rs:
         for vp in notices:
-            if vp.account == r.account and r.lot_opened < (vp.ex_date or vp.date) <= r.date:
+            record = vp.ex_date or vp.date
+            if vp.account == r.account and r.lot_opened < record <= r.date:
+                # A split between the notice and the sale would change what a unit is;
+                # one anywhere else doesn't matter.
+                if any(s.account == r.account and record <= s.date <= r.date for s in splits):
+                    raise NotImplementedError("Vorabpauschale per unit across a split")
                 share = _vp_per_unit(case, asset, r.account, vp).get(r.lot_opened, Decimal(0))
                 deducted += share * r.units
     before_tax = sum((r.gain + r.taxes for r in rs), Decimal(0))
