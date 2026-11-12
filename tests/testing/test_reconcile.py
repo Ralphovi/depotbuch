@@ -128,6 +128,29 @@ def test_refuses_a_missing_directory(tmp_path: Path) -> None:
     assert run(str(tmp_path / "nope"), own_repo=None) == 2
 
 
+def test_a_hard_linked_report_is_replaced_not_written_through(tmp_path: Path) -> None:
+    c = corpus(tmp_path / "c", **{"c01.toml": GOOD.replace("{units}", "99.5")})
+    outside = tmp_path / "tracked.txt"
+    outside.write_text("original\n", encoding="utf-8")
+    os.link(outside, c / REPORT)
+    assert run(str(c), own_repo=None) == 1
+    assert outside.read_text(encoding="utf-8") == "original\n"
+    assert "99.5" in (c / REPORT).read_text(encoding="utf-8")
+
+
+def test_a_fifo_report_is_replaced(tmp_path: Path) -> None:
+    c = corpus(tmp_path / "c", **{"c01.toml": GOOD.replace("{units}", "17.123")})
+    os.mkfifo(c / REPORT)
+    assert run(str(c), own_repo=None) == 0
+    assert (c / REPORT).is_file()
+
+
+def test_refuses_under_a_broken_repository(tmp_path: Path) -> None:
+    other = make_repo(tmp_path / "other")
+    (other / ".git" / "HEAD").unlink()
+    assert run(str(corpus(other / "private")), own_repo=None) == 2
+
+
 def test_refuses_a_symlinked_report(tmp_path: Path) -> None:
     c = corpus(tmp_path / "c", **{"c01.toml": GOOD.replace("{units}", "17.123")})
     (c / REPORT).symlink_to(tmp_path / "elsewhere.txt")

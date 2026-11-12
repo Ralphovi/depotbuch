@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -94,6 +95,9 @@ def _worktree(path: Path) -> Path | None:
     if r.returncode == 0:
         return Path(r.stdout.strip()).resolve()
     if "not a git repository" in r.stderr:
+        # A .git marker that git can't read is a broken repository, not "outside any".
+        if any((p / ".git").exists() for p in (probe, *probe.parents)):
+            raise LocationUnknown
         return None
     raise LocationUnknown
 
@@ -212,6 +216,19 @@ def _check_file(path: Path, details: list[str]) -> int:
     return failed
 
 
+def _replace(report: Path, text: str) -> None:
+    """Write a new regular file and swap it in, so an existing hard link, FIFO or device at
+    the report path is replaced rather than written through."""
+    fd, tmp = tempfile.mkstemp(dir=report.parent, prefix=".reconcile-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, report)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
 def run(corpus_arg: str, own_repo: Path | None = _HERE.parents[3]) -> int:
     """Check every case in the corpus. Returns 0 if all pass, 1 on a failure, 2 if refused."""
     corpus = Path(corpus_arg).expanduser().resolve()
@@ -225,7 +242,7 @@ def run(corpus_arg: str, own_repo: Path | None = _HERE.parents[3]) -> int:
         return 1
     details: list[str] = []
     failed = sum(_check_file(path, details) for path in cases)
-    report.write_text("\n".join(details) + ("\n" if details else ""), encoding="utf-8")
+    _replace(report, "\n".join(details) + ("\n" if details else ""))
     _out(f"{'FAILED' if failed else 'passed'}; details in {REPORT} inside the corpus")
     return 1 if failed else 0
 
