@@ -52,9 +52,10 @@ def test_a_close_from_after_the_day_is_not_used() -> None:
         value(acts, D, assets={}, prices=Prices({"X1": {date(2024, 6, 4): Decimal(10)}}))
 
 
-def test_negative_closes_are_rejected() -> None:
-    with pytest.raises(ValueError, match="negative"):
-        Prices({"X1": {D: Decimal(-1)}})
+@pytest.mark.parametrize("close", ["-1", "Infinity", "NaN", "1E15"])
+def test_invalid_closes_are_rejected(close: str) -> None:
+    with pytest.raises(ValueError, match="close"):
+        Prices({"X1": {D: Decimal(close)}})
 
 
 @pytest.mark.parametrize(
@@ -91,10 +92,24 @@ def test_interest_already_credited_is_not_accrued_twice() -> None:
         act(date=t.start, type="deposit", account="fg", asset="FG", cash="10000.00"),
         act(date=date(2024, 1, 13), type="interest", account="fg", asset="FG", cash="4.00"),
     ]
+    taxed = [
+        acts[0],
+        act(
+            date=date(2024, 1, 13),
+            type="interest",
+            account="fg",
+            asset="FG",
+            cash="2.95",
+            taxes="1.05",
+        ),
+    ]
     assets = {"FG": Asset(id="FG", kind=AssetKind.DEPOSIT)}
     accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
     got = value(acts, date(2024, 1, 15), assets=assets, prices=Prices(), accounts=accounts)
     assert got == Decimal("10006.00")
+    # 4.00 gross credited as 2.95 after 1.05 tax: 10002.95 + 2.00 still accrued.
+    got = value(taxed, date(2024, 1, 15), assets=assets, prices=Prices(), accounts=accounts)
+    assert got == Decimal("10004.95")
 
 
 def test_a_cash_booking_in_another_currency_is_rejected() -> None:

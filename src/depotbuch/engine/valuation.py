@@ -33,7 +33,7 @@ from depotbuch.engine.model import (
     DayCount,
     DepositTerms,
 )
-from depotbuch.engine.money import exact_sum
+from depotbuch.engine.money import MAX_BOOKED, exact_sum
 
 _ZERO = Decimal(0)
 _HUNDRED = Decimal(100)
@@ -55,8 +55,8 @@ class Prices:
         self._dates: dict[str, list[dt.date]] = {}
         self._closes: dict[str, dict[dt.date, Decimal]] = {}
         for asset, series in (closes or {}).items():
-            if any(c < 0 for c in series.values()):
-                raise ValueError("a close can't be negative")
+            if not all(c.is_finite() and _ZERO <= c < MAX_BOOKED for c in series.values()):
+                raise ValueError("a close is a finite amount from 0 to below 10^15")
             self._closes[asset] = dict(series)
             self._dates[asset] = sorted(series)
 
@@ -197,7 +197,9 @@ def _uncredited(bookings: list[Activity], terms: DepositTerms, on: dt.date) -> D
     out: a withdrawal on or after maturity closes it, and its balance is the value."""
     if any(a.type is ActivityType.WITHDRAWAL and a.date >= terms.maturity for a in bookings):
         return _ZERO
-    credited = exact_sum(
-        a.cash for a in bookings if a.type is ActivityType.INTEREST and a.date >= terms.start
+    credited = exact_sum(  # gross: the net credit plus the tax withheld from it
+        a.cash + a.taxes
+        for a in bookings
+        if a.type is ActivityType.INTEREST and a.date >= terms.start
     )
     return accrued_interest(terms, on) - credited
