@@ -65,6 +65,7 @@ frontmatter, and both sides of every supersession agree. Run
 | [0011](0011-django-5-2-lts-for-python-3-11.md) | Django 5.2 LTS, to keep Python 3.11 | Proposed |
 | [0012](0012-parqet-compatible-mode.md) | A Parqet-compatible mode, for the parallel run only | Proposed |
 | [0013](0013-decimal-amounts-rounded-half-up-where-providers-round.md) | Decimal amounts, rounded half up only where a provider rounds | Proposed |
+| [0014](0014-bonds-as-nominal-units.md) | Bonds: the nominal amount as units, accrued interest in the cost | Proposed |
 
 ## ADR candidates
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from depotbuch.testing.casefile import check, load_case
+from depotbuch.testing.casefile import PRIVATE_ONLY, check, load_case
 
 CASES = sorted((Path(__file__).parent / "cases").glob("*.toml"))
 
@@ -17,5 +17,8 @@ def test_there_are_cases() -> None:
 def test_case(path: Path) -> None:
     case = load_case(path)
     assert case.name == path.stem, "a case's name matches its file name"
-    for i, metric, mode, want, got in check(case):
-        assert got == want, f"expect[{i}] {metric} ({mode})"
+    for e in case.expect:
+        assert e.tolerance is None, "public cases are exact"
+        assert not set(e.metrics) & PRIVATE_ONLY, "taxable_gain is for the private corpus"
+    for r in check(case):
+        assert r.ok, f"expect[{r.expect}] {r.metric} ({r.mode}): want {r.want}, got {r.got}"

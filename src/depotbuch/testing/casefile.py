@@ -25,10 +25,15 @@ currency = "USD"          # EUR by default
 
 [[expect]]
 as_of = 2024-06-28
+since = 2024-01-01        # for range metrics (realized_gain): after this day, up to as_of
 slice = { asset = "X1" }
 units = "3"               # one key per metric
 parqet = { units = "3" }  # only where --parqet differs
 ```
+
+Money metrics are compared to the cent, rounded half up (ADR-0013); units exactly. A
+`tolerance` (EUR) is for the private corpus only, where a provider's own figure may differ
+by its rounding; public cases never use one.
 
 Public cases live in `tests/engine/cases/`; private ones in a corpus outside the
 repository, run by `depotbuch.testing.reconcile`.
@@ -41,13 +46,15 @@ from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from depotbuch.engine.fx import FxRates
 from depotbuch.engine.holdings import units_held
-from depotbuch.engine.model import Activity, Asset, AssetKind
-from depotbuch.engine.money import Currency, Dec
+from depotbuch.engine.lots import LotBook, build_lots
+from depotbuch.engine.model import Activity, ActivityType, Asset, AssetKind
+from depotbuch.engine.money import Currency, Dec, round_cent
 
 DEFAULT_ACCOUNT = "depot"
 
@@ -66,6 +73,9 @@ class AssetSpec(BaseModel):
     kind: AssetKind = AssetKind.SECURITY
     currency: Currency = "EUR"
     isin: str | None = None
+    partial_exemption: Dec | None = None
+    """Teilfreistellung in percent, for the private `taxable_gain` check only; not an engine
+    attribute (the engine computes no German tax)."""
 
 
 class Expect(BaseModel):
@@ -74,16 +84,18 @@ class Expect(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     as_of: date
+    since: date | None = None
     slice: Slice = Field(default_factory=Slice)
     metrics: dict[str, Dec]
     parqet: dict[str, Dec] = Field(default_factory=dict)
+    tolerance: Dec | None = None
 
     @model_validator(mode="before")
     @classmethod
     def _collect_metrics(cls, data: Any) -> Any:
         """Every key that isn't `as_of`, `slice` or `parqet` is a metric."""
         if isinstance(data, dict) and "metrics" not in data:
-            fixed = {"as_of", "slice", "parqet"}
+            fixed = {"as_of", "since", "slice", "parqet", "tolerance"}
             data = {
                 **{k: v for k, v in data.items() if k in fixed},
                 "metrics": {k: v for k, v in data.items() if k not in fixed},
@@ -99,6 +111,10 @@ class Expect(BaseModel):
                 raise ValueError("unknown metric")
         if not set(self.parqet) <= set(self.metrics):
             raise ValueError("a parqet value needs the same metric's default value")
+        if self.tolerance is not None and self.tolerance < 0:
+            raise ValueError("a tolerance can't be negative")
+        if self.since is not None and self.since >= self.as_of:
+            raise ValueError("since must be before as_of")
         return self
 
 
@@ -137,10 +153,19 @@ class Case(BaseModel):
     def asset_list(self) -> list[Asset]:
         """The case's assets as engine types; an asset used but not declared is EUR."""
         used = {a.asset for a in self.activities if a.asset}
+        engine_fields = set(Asset.model_fields)
         return [
-            Asset(id=i, **(self.assets[i].model_dump() if i in self.assets else {}))
+            Asset(
+                id=i,
+                **(
+                    self.assets[i].model_dump(include=engine_fields) if i in self.assets else {}
+                ),
+            )
             for i in sorted(used | set(self.assets))
         ]
+
+    def fx_rates(self) -> FxRates:
+        return FxRates(self.fx)
 
 
 def load_case(path: Path) -> Case:
@@ -157,30 +182,105 @@ Metric = Callable[[Case, Expect, bool], Decimal]
 """(case, expectation, parqet mode) -> the engine's value."""
 
 
-def _units(case: Case, expect: Expect, parqet: bool) -> Decimal:
-    del parqet  # units don't depend on the mode
-    if expect.slice.asset is None:
-        raise ValueError("units need an asset in the slice")
+class Result(NamedTuple):
+    expect: int
+    metric: str
+    mode: str
+    want: Decimal
+    got: Decimal
+    ok: bool
+
+
+def _asset(expect: Expect, metric: str) -> str:
     if expect.slice.provider is not None:
         raise NotImplementedError("provider slices arrive with the slice rule (#26)")
+    if expect.slice.asset is None:
+        raise ValueError(f"{metric} needs an asset in the slice")
+    return expect.slice.asset
+
+
+def _units(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    del parqet  # units don't depend on the mode
     return units_held(
-        case.activities, expect.as_of, asset=expect.slice.asset, account=expect.slice.account
+        case.activities,
+        expect.as_of,
+        asset=_asset(expect, "units"),
+        account=expect.slice.account,
     )
 
 
-METRICS: dict[str, Metric] = {"units": _units}
+def _book(case: Case, expect: Expect) -> LotBook:
+    return build_lots(case.activities, expect.as_of, case.fx_rates())
 
 
-def check(case: Case) -> list[tuple[int, str, str, Decimal, Decimal]]:
+def _invested_capital(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    del parqet  # the cost of open lots doesn't depend on the mode
+    if expect.slice.provider is not None:
+        raise NotImplementedError("provider slices arrive with the slice rule (#26)")
+    return _book(case, expect).invested_capital(
+        asset=expect.slice.asset, account=expect.slice.account
+    )
+
+
+def _realized_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    del parqet  # whether --parqet changes realized gains is settled with #29
+    if expect.slice.provider is not None:
+        raise NotImplementedError("provider slices arrive with the slice rule (#26)")
+    return _book(case, expect).realized_gain(
+        asset=expect.slice.asset, account=expect.slice.account, since=expect.since
+    )
+
+
+def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
+    """For the private corpus: a provider's taxable gain on fund sales, rebuilt from FIFO.
+
+    (gain before tax - Vorabpauschale already assessed on the units sold)
+    x (1 - partial exemption). Not an engine figure: the engine computes no German tax.
+    """
+    del parqet
+    asset = _asset(expect, "taxable_gain")
+    spec = case.assets.get(asset)
+    if spec is None or spec.partial_exemption is None:
+        raise ValueError("taxable_gain needs the asset's partial_exemption")
+    if any(
+        a.type is ActivityType.VORABPAUSCHALE and a.asset == asset and a.amount
+        for a in case.activities
+    ):
+        raise NotImplementedError("deducting Vorabpauschale arrives with #24")
+    rs = _book(case, expect).realizations(
+        asset=asset, account=expect.slice.account, since=expect.since
+    )
+    before_tax = sum((r.gain + r.taxes for r in rs), Decimal(0))
+    return before_tax * (1 - spec.partial_exemption / 100)
+
+
+METRICS: dict[str, Metric] = {
+    "units": _units,
+    "invested_capital": _invested_capital,
+    "realized_gain": _realized_gain,
+    "taxable_gain": _taxable_gain,
+}
+MONEY = frozenset({"invested_capital", "realized_gain", "taxable_gain"})
+"""Metrics compared to the cent."""
+PRIVATE_ONLY = frozenset({"taxable_gain"})
+"""Metrics for the private corpus, never used in a public case."""
+
+
+def check(case: Case) -> list[Result]:
     """Evaluate every expectation in both modes.
 
-    Returns (expect index, metric, mode, expected, actual) for each comparison. A metric
-    without a `parqet` value must give the same result in both modes.
+    A metric without a `parqet` value must give the same result in both modes. Money is
+    rounded to the cent before it is compared; a tolerance, where given, allows that much
+    difference in EUR.
     """
     results = []
     for i, e in enumerate(case.expect):
+        allowed = e.tolerance or Decimal(0)
         for name, expected in e.metrics.items():
             for mode, parqet in (("default", False), ("parqet", True)):
                 want = e.parqet.get(name, expected) if parqet else expected
-                results.append((i, name, mode, want, METRICS[name](case, e, parqet)))
+                got = METRICS[name](case, e, parqet)
+                if name in MONEY:
+                    got = round_cent(got)
+                results.append(Result(i, name, mode, want, got, abs(got - want) <= allowed))
     return results

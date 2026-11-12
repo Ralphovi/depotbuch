@@ -1,0 +1,36 @@
+name = "bond-nominal"
+rule = "ADR-0014: a bond's units are its nominal amount; accrued interest paid is part of the cost"
+working = """
+Buy 2000.00 nominal at 101.25 %: 2025.00, plus 18.40 accrued interest and 9.90 fees:
+cash 2053.30, the lot's cost.
+Sell 500.00 nominal at 102.00 %: 510.00, plus 6.10 accrued interest received, less 5.95
+fees: cash 510.15. FIFO cost 2053.30 x 500/2000 = 513.325. Gain 510.15 - 513.325 = -3.175,
+-3.18 to the cent (half up rounds away from zero).
+Invested: 2053.30 - 513.325 = 1539.975, 1539.98 to the cent. Units: 1500 nominal.
+"""
+
+[assets.B1]
+kind = "bond"
+
+[[activities]]
+date = 2025-03-03
+type = "buy"
+asset = "B1"
+units = "2000.00"
+cash = "-2053.30"
+fees = "9.90"
+
+[[activities]]
+date = 2025-09-01
+type = "sell"
+asset = "B1"
+units = "-500.00"
+cash = "510.15"
+fees = "5.95"
+
+[[expect]]
+as_of = 2025-09-30
+slice = { asset = "B1" }
+units = "1500"
+invested_capital = "1539.98"
+realized_gain = "-3.18"

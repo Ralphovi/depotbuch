@@ -65,11 +65,8 @@ def test_case_loads_into_engine_types_and_round_trips(tmp_path: Path) -> None:
 
 def test_check_runs_both_modes(tmp_path: Path) -> None:
     results = check(load_case(write(tmp_path, USD_CASE)))
-    assert [(m, mode) for _, m, mode, _, _ in results] == [
-        ("units", "default"),
-        ("units", "parqet"),
-    ]
-    assert all(want == got for *_, want, got in results)
+    assert [(r.metric, r.mode) for r in results] == [("units", "default"), ("units", "parqet")]
+    assert all(r.ok for r in results)
 
 
 @pytest.mark.parametrize(
