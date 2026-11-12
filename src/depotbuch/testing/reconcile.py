@@ -51,6 +51,14 @@ class LocationUnknown(Exception):
     """Git could not say whether a path is inside a repository; the runner refuses."""
 
 
+def _git_env() -> dict[str, str]:
+    """The environment without any GIT_* variable that could hide a repository from
+    discovery (GIT_DIR, GIT_CEILING_DIRECTORIES, ...), with discovery across mount points
+    and untranslated messages so "not a git repository" can be recognized."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    return {**env, "GIT_DISCOVERY_ACROSS_FILESYSTEM": "1", "LC_ALL": "C", "LANGUAGE": "C"}
+
+
 def _run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(  # noqa: S603 - fixed program, no shell
@@ -58,8 +66,7 @@ def _run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
             capture_output=True,
             text=True,
             check=False,
-            # Untranslated messages, so "not a git repository" can be recognized.
-            env={**os.environ, "LC_ALL": "C", "LANGUAGE": "C"},
+            env=_git_env(),
         )
     except OSError:
         raise LocationUnknown from None

@@ -195,6 +195,18 @@ def test_works_under_a_translated_locale(
     assert run(str(c), own_repo=None) == 0
 
 
+@pytest.mark.parametrize("var", ["GIT_CEILING_DIRECTORIES", "GIT_DIR", "GIT_WORK_TREE"])
+def test_inherited_git_variables_cannot_hide_a_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, var: str
+) -> None:
+    other = make_repo(tmp_path / "other")
+    git("remote", "add", "origin", "https://example.invalid/x.git", cwd=other)
+    elsewhere = make_repo(tmp_path / "elsewhere")
+    value = {"GIT_CEILING_DIRECTORIES": str(other), "GIT_DIR": str(elsewhere / ".git")}
+    monkeypatch.setenv(var, value.get(var, str(elsewhere)))
+    assert run(str(corpus(other / "private")), own_repo=None) == 2
+
+
 def test_refuses_when_a_later_probe_fails(tmp_path: Path) -> None:
     own = make_repo(tmp_path / "own")
     other = make_repo(tmp_path / "other")
