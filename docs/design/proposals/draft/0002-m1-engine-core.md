@@ -128,7 +128,7 @@ rules it implements and runs the private reconciliation for those rules before i
 | 6 | **Flows: the slice rule.** Classifying every booking into B, S, R or no flow for a given slice. | *Flows: the slice rule* | One public case per row of the classification table in 0001, for each slice the row names. |
 | 7 | **TTWROR and absolute gain.** | *TTWROR*, *Absolute gain* | The hand-computed case in 0001 and the dividend and fee examples there; property: TTWROR over a range equals the product over any split of it. |
 | 8 | **IZF.** Root finding on the daily flows, with the start and end value as flows. | *IZF* | Public cases with a known closed-form rate; property: NPV at the found rate is zero within 1e-9 of the flows' magnitude; no-solution and multiple-root cases are reported, not guessed. |
-| 9 | **Parqet-compatible mode.** | *Parqet-compatible mode* | Every case from PRs 2 and 4–8 that involves fees or taxes runs in both modes, with the expected `--parqet` result written out; this includes a buy and a sale with fees and a sale with withheld tax, for a single security and for its provider. |
+| 9 | **Parqet-compatible mode.** | *Parqet-compatible mode* | Every public case runs in both modes. A case states a separate `--parqet` expectation only where the result differs, and otherwise must give the same result in both. The differing cases include a buy and a sale with fees and a sale with withheld tax, for a single security and for its provider. |
 
 The root finder in PR 8 depends on the other PRs only through the engine types, so it can
 start as soon as PR 1 has landed.
@@ -177,8 +177,9 @@ check FIFO, not to reproduce the tax computation.
 
 M1 is done when:
 
-1. Every calculation rule in proposal 0001 has at least one public hand-computed case, in
-   default and `--parqet` mode where the modes differ (architecture §13).
+1. Every calculation rule in proposal 0001 has at least one public hand-computed case, and
+   every public case passes in both default and `--parqet` mode, with a separate expected
+   result where the modes differ (architecture §13).
 2. The Hypothesis properties hold: lots sum to holdings, no cash line is counted twice, and
    TTWROR is independent of how a range is split.
 3. The private reconciliation of the Consorsbank history passes: units match every holdings
