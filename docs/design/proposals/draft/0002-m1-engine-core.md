@@ -42,14 +42,21 @@ The design below says how they are used anyway.
 
 ## Design
 
-### Two kinds of test case
+### Three kinds of test case
 
-| | Public cases | Private reconciliation |
-|---|---|---|
-| Where | `tests/engine/cases/` in the repository | A directory outside the repository, passed explicitly to its own session |
-| Content | Invented activities, prices and expected results, each with its arithmetic written out | Activities transcribed from real statements, and the results the provider states |
-| Runs in | `nox -s gate` and CI | Locally only, as `nox -s reconcile -- <corpus path>`; never in the gate or CI |
-| Proves | Each calculation rule, as proposal 0001 defines it | That the rules, applied to a real history, agree with the provider |
+| | Public cases | Synthetic histories | Private reconciliation |
+|---|---|---|---|
+| Where | `tests/engine/cases/` in the repository | Generated from a seed by `depotbuch.testing.synth`, in `tests/engine/test_synthetic.py` | A directory outside the repository, passed explicitly to its own session |
+| Content | Invented activities, prices and expected results, each with its arithmetic written out | Invented multi-year histories shaped like the real one; the expected results are the documents a model of the broker's arithmetic prints (`depotbuch.testing.bank`) | Activities transcribed from real statements, and the results the provider states |
+| Runs in | `nox -s gate` and CI | `nox -s gate` and CI, fixed seeds plus Hypothesis-drawn ones, some with extreme ranges | Locally only, as `nox -s reconcile -- <corpus path>`; never in the gate or CI |
+| Proves | Each calculation rule, as proposal 0001 defines it | That the rules hold together over long histories, everywhere a public case can go (CI, review bundles, agents) | That the rules, applied to a real history, agree with the provider |
+
+The bank model imports nothing from the engine, and it is checked against the private
+history: replaying the real orders, it reprints every trade confirmation, holdings
+statement, distribution notice and taxable sale gain to the cent (one notice prints its
+amount per unit rounded, so its gross is a cent off). Only the bank's rules and the kinds
+of event come from the real history; the generator draws every asset, date, price and
+amount from its seed.
 
 A public case is shaped after a private one but invented: other amounts, dates and
 placeholder ISINs. Where a private case finds a difference, the fix comes with a new public
