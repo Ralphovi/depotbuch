@@ -82,8 +82,8 @@ def test_two_notices_each_have_units() -> None:
 
 
 def test_a_case_name_is_escaped_and_a_history_has_a_year() -> None:
-    case = tomllib.loads(to_case(history(1, years=1), 'fund "A"\\n'))
-    assert case["name"] == 'fund "A"\\n'
+    for name in ('fund "A"\\n', "\x7f\U0001f600 Ä"):
+        assert tomllib.loads(to_case(history(1, years=1), name))["name"] == name
     with pytest.raises(ValueError, match="one year"):
         history(1, years=0)
 

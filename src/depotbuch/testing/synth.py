@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import json
 import math
 import random
 import sys
@@ -250,9 +249,17 @@ class _Book:
 # ---------------------------------------------------------------------------
 
 
+_TOML_ESCAPED = frozenset('"\\')
+
+
 def _q(value: object) -> str:
-    """`value` as a TOML string: a JSON string's escapes are valid TOML."""
-    return json.dumps(str(value))
+    """`value` as a TOML basic string: quotes, backslashes and control characters escaped,
+    everything else literal."""
+    escaped = "".join(
+        f"\\u{ord(c):04x}" if c in _TOML_ESCAPED or (c.isascii() and not c.isprintable()) else c
+        for c in str(value)
+    )
+    return f'"{escaped}"'
 
 
 def to_case(syn: Synthetic, name: str | None = None) -> str:
