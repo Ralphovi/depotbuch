@@ -35,7 +35,8 @@ We will value a Festgeld from its activities and its account's terms:
   the count never goes down; after maturity it stops.
 - The value is the account's balance, from its bookings, plus the interest accrued and not
   yet credited (gross: a credit's net amount plus the tax withheld from it). An account with
-  deposit terms holds one Festgeld, whatever asset its bookings name. A credit rounded to
+  deposit terms holds one Festgeld: every booking in it belongs to that balance, whatever
+  asset it names, and a booking that moves units there is an error. A credit rounded to
   the cent may exceed the accrual; then nothing is left to accrue, and the value never
   falls below the balance. Once a withdrawal on or after maturity pays the deposit out, the value is
   the balance alone: the statement is what happened.

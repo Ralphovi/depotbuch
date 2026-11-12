@@ -131,6 +131,16 @@ class _Market:
         spec = self.accounts.get(account)
         return spec.deposit if spec else None
 
+    def is_balance(self, a: Activity) -> bool:
+        """A booking of a cash or Festgeld balance rather than a security: everything in a
+        Festgeld account, a booking without an asset, or one naming a cash or deposit
+        asset."""
+        return (
+            self.terms(a.account) is not None
+            or not a.asset
+            or self.kind(a.asset) not in _TRADED
+        )
+
     def balance_key(self, a: Activity) -> tuple[str, str]:
         """Which balance a cash booking belongs to: in a Festgeld account (one with deposit
         terms) the account's one deposit, whatever asset the booking names; elsewhere the
@@ -160,37 +170,26 @@ def value(
     doesn't stop it.
     """
     market = _Market(assets, prices, fx or FxRates(), accounts or {})
-    every = list(activities)
-    own = [
-        a
-        for a in every
-        if a.date <= on
-        and (asset is None or a.asset == asset)
-        and (account is None or a.account == account)
+    scope = [
+        a for a in activities if a.date <= on and (account is None or a.account == account)
     ]
+    if asset is None:
+        own = scope
+    else:  # a Festgeld account is one balance: its asset's slice is the whole account
+        festgeld = {a.account for a in scope if a.asset == asset and market.terms(a.account)}
+        own = [a for a in scope if a.asset == asset or a.account in festgeld]
+    traded = [a for a in own if not market.is_balance(a)]
+    held = [a for a in own if market.is_balance(a)]
     parts: list[Decimal] = []
-    if asset is not None:
-        own += _festgeld_lines(every, own, market, on)
-    traded = [a for a in own if a.asset and market.kind(a.asset) in _TRADED]
     for (_, held_asset), units in _units(traded, on).items():
         if units:
             parts.append(_security(market, held_asset, units, on))
-    held = [a for a in own if not a.asset or market.kind(a.asset) not in _TRADED]
     groups: dict[tuple[str, str], list[Activity]] = {}
     for a in held:
         groups.setdefault(market.balance_key(a), []).append(a)
     for (acc, _), bookings in sorted(groups.items()):
         parts.append(_balance(market, bookings, acc, on))
     return exact_sum(parts)
-
-
-def _festgeld_lines(
-    activities: list[Activity], own: list[Activity], market: _Market, on: dt.date
-) -> list[Activity]:
-    """For a slice by asset: the bookings without an asset in the Festgeld accounts where
-    the asset is booked, since such an account holds one balance (`balance_key`)."""
-    festgeld = {a.account for a in own if market.terms(a.account) is not None}
-    return [a for a in activities if not a.asset and a.date <= on and a.account in festgeld]
 
 
 def _units(activities: list[Activity], on: dt.date) -> dict[tuple[str, str], Decimal]:
@@ -220,6 +219,8 @@ def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.dat
         market.currency(n) != currency for n in named
     ):
         raise ValueError("a cash booking's currency differs from its balance's")
+    if terms is not None and any(a.units for a in bookings):
+        raise ValueError("a Festgeld account holds no units")
     balance = exact_sum(a.cash for a in bookings)
     if deposit:
         if terms is None:

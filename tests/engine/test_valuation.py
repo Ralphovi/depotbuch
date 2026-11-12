@@ -214,3 +214,23 @@ def test_a_credit_rounded_up_leaves_nothing_to_accrue() -> None:
     accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
     got = value(acts, t.start, assets={}, prices=Prices(), accounts=accounts)
     assert got == Decimal("100.01")
+
+
+def test_everything_in_a_festgeld_account_is_its_balance() -> None:
+    """The placement names an undeclared asset (an EUR security by default), the payout
+    another one: both are the Festgeld's, and a slice by either asset is the account."""
+    t = terms()
+    acts = [
+        act(date=t.start, type="deposit", account="fg", asset="P1", cash="10000.00"),
+        act(
+            date=date(2024, 1, 22), type="withdrawal", account="fg", asset="P2", cash="-9990.00"
+        ),
+    ]
+    accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
+    kw: dict[str, Any] = {"assets": {}, "prices": Prices(), "accounts": accounts}
+    assert value(acts, date(2024, 1, 21), **kw) == Decimal("10010.00")
+    assert value(acts, date(2024, 1, 21), asset="P1", **kw) == Decimal("10010.00")
+    assert value(acts, date(2024, 1, 22), asset="P1", **kw) == Decimal("10.00")
+    buy = act(date=t.start, type="buy", account="fg", asset="X1", units="1", cash="-1.00")
+    with pytest.raises(ValueError, match="no units"):
+        value([*acts, buy], date(2024, 1, 21), **kw)
