@@ -91,6 +91,8 @@ def test_validation_errors_never_repeat_values() -> None:
     [
         {"cash": "-1000000000000000.00"},
         {"cash": "-1E26"},
+        {"cash": "-1E+1000000"},
+        {"units": "1E+1000000"},
         {"fx_rate": "0.0000001", "currency": "USD"},
         {"fx_rate": "1000001", "currency": "USD"},
     ],

@@ -153,7 +153,7 @@ class Activity(BaseModel):
         )
         yield (
             not all(
-                is_booked(v) and abs(v) < MAX_BOOKED
+                is_booked(v) and v.copy_abs() < MAX_BOOKED
                 for v in (cash, self.fees, self.taxes, self.cost_basis, self.amount)
                 if v is not None
             ),

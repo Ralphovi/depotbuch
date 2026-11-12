@@ -80,7 +80,9 @@ def book_exact(value: Fraction) -> Decimal:
 def is_units(units: Decimal) -> bool:
     """True if `units` is a unit count depotbuch computes with exactly (see `MAX_BOOKED`)."""
     _, _, exponent = units.as_tuple()
-    return isinstance(exponent, int) and exponent >= -UNIT_PLACES and abs(units) < MAX_BOOKED
+    return (
+        isinstance(exponent, int) and exponent >= -UNIT_PLACES and units.copy_abs() < MAX_BOOKED
+    )
 
 
 def is_rate(rate: Decimal) -> bool:
