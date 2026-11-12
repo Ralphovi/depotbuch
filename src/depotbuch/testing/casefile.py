@@ -81,7 +81,7 @@ class AssetSpec(BaseModel):
     kind: AssetKind = AssetKind.SECURITY
     currency: Currency = "EUR"
     isin: str | None = None
-    partial_exemption: Dec | None = None
+    partial_exemption: Dec | None = Field(default=None, ge=0, le=100)
     """Teilfreistellung in percent, for the private `taxable_gain` check only; not an engine
     attribute (the engine computes no German tax)."""
 

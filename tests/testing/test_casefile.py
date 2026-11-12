@@ -378,3 +378,10 @@ realized_gain = "20.00"
     results = check(load_case(write(tmp_path, text)))
     assert len(results) == 4
     assert all(r.ok for r in results), results
+
+
+@pytest.mark.parametrize("percent", ["-30", "300"])
+def test_a_partial_exemption_outside_0_to_100_is_rejected(tmp_path: Path, percent: str) -> None:
+    text = VP_CASE.replace('partial_exemption = "30"', f'partial_exemption = "{percent}"')
+    with pytest.raises(ValidationError):
+        load_case(write(tmp_path, text))
