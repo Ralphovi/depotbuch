@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from depotbuch.engine.fx import MissingRate
 from depotbuch.engine.model import Account, Activity, Asset, AssetKind, DayCount, DepositTerms
 from depotbuch.engine.valuation import (
     MissingPrice,
@@ -44,6 +45,13 @@ def test_a_position_sold_out_needs_no_close() -> None:
         act(type="sell", asset="X1", units="-1", cash="11.00"),
     ]
     assert value(acts, D, assets={}, prices=Prices()) == 0
+
+
+def test_a_held_foreign_position_needs_its_rate_even_at_a_zero_close() -> None:
+    acts = [act(type="buy", asset="U1", units="1", cash="-10.00")]
+    assets = {"U1": Asset(id="U1", currency="USD")}
+    with pytest.raises(MissingRate):
+        value(acts, D, assets=assets, prices=Prices({"U1": {D: Decimal(0)}}))
 
 
 def test_a_close_from_after_the_day_is_not_used() -> None:

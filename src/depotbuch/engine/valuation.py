@@ -205,7 +205,9 @@ def _security(market: _Market, asset: str, units: Decimal, on: dt.date) -> Decim
     local = units * market.prices.close(asset, on)
     if market.kind(asset) is AssetKind.BOND:
         local /= _HUNDRED
-    return market.rates.to_eur(local, market.currency(asset), on)
+    currency = market.currency(asset)
+    rate = market.rates.rate(currency, on)  # a held position needs its rate, even at 0
+    return market.rates.to_eur(local, currency, on, rate)
 
 
 def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.date) -> Decimal:
