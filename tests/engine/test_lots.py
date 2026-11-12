@@ -9,6 +9,7 @@ from depotbuch.engine.fx import FxRates, MissingRate
 from depotbuch.engine.holdings import units_held
 from depotbuch.engine.lots import MissingCostBasis, Oversold, build_lots
 from depotbuch.engine.model import Activity
+from depotbuch.engine.money import round_cent
 
 START = date(2024, 1, 1)
 END = date(2024, 12, 31)
@@ -89,6 +90,24 @@ def test_proceeds_are_split_without_loss(acts: list[Activity]) -> None:
     book = build_lots(acts, END)
     received = sum((a.cash for a in acts if a.type == "sell"), Decimal(0))
     assert abs(sum((r.proceeds for r in book.realized), Decimal(0)) - received) < TINY
+    for sale in (a for a in acts if a.type == "sell"):
+        slices = [r for r in book.realized if (r.date, r.account) == (sale.date, sale.account)]
+        assert abs(sum((r.proceeds for r in slices), Decimal(0)) - sale.cash) < TINY
+
+
+def test_a_half_cent_gain_survives_the_split_across_lots() -> None:
+    """Lots of 1 @ 1.00, 1 @ 1.00 and 2 @ 2.01; selling 3 for 3.01 closes cost
+    1.00 + 1.00 + 1.005 = 3.005, a gain of 0.005, which rounds half up to 0.01. Thirds of
+    3.01 sum to just under 3.01 unless the last slice takes the remainder."""
+    acts = [
+        buy(0, "1", "-1.00"),
+        buy(1, "1", "-1.00"),
+        buy(2, "2", "-2.01"),
+        sell(3, "-3", "3.01"),
+    ]
+    book = build_lots(acts, END)
+    assert book.realized_gain() == Decimal("0.005")
+    assert round_cent(book.realized_gain()) == Decimal("0.01")
 
 
 def test_oversold_is_rejected_with_its_date() -> None:
