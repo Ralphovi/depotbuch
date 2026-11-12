@@ -1,0 +1,39 @@
+name = "value-security-carry-forward"
+rule = "proposal 0001, Valuation by asset type: units x close; the last close is carried forward, never zero"
+working = """
+10 units bought on 2024-06-03. Closes 120.00 on 2024-06-27 and 125.00 on Friday 2024-06-28.
+Friday: 10 x 125.00 = 1250.00. Sunday 2024-06-30 has no close: Friday's carries, 1250.00.
+After 4 units are sold on 2024-07-01 with no close since: 6 x 125.00 = 750.00.
+"""
+
+[prices.X1]
+2024-06-27 = "120.00"
+2024-06-28 = "125.00"
+
+[[activities]]
+date = 2024-06-03
+type = "buy"
+asset = "X1"
+units = "10"
+cash = "-1150.00"
+
+[[activities]]
+date = 2024-07-01
+type = "sell"
+asset = "X1"
+units = "-4"
+cash = "500.00"
+
+[[expect]]
+as_of = 2024-06-28
+slice = { asset = "X1" }
+value = "1250.00"
+
+[[expect]]
+as_of = 2024-06-30
+slice = { asset = "X1" }
+value = "1250.00"
+
+[[expect]]
+as_of = 2024-07-01
+value = "750.00"

@@ -238,6 +238,11 @@ and may change with the engine types.
   doesn't change invested capital or realized gain. Both sales carried no Vorabpauschale,
   so how the bank combines the two per lot is still unconfirmed; the private harness
   deducts each lot's share before the exemption. The tax view (M2) follows this in an ADR.
+- [ ] **Totals that add up on screen.** A Consorsbank holdings statement's total is the sum
+  of its position values, each rounded to the cent; depotbuch's value is summed at full
+  precision and rounded once (ADR-0013), so the two differ by a cent in 4 of 20 statements
+  while every position matches. Should a view show totals as the sum of the positions it
+  displays (the front end, M3), or the engine's figure?
 - [ ] **Paid accrued interest on bonds:** part of the purchase cost (as above), or negative
   income in the year it is paid, as German tax treats it?
 - [ ] **Which Consorsbank date is the ex-date?** Its distribution notices give a

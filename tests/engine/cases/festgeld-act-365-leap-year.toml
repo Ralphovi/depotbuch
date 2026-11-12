@@ -1,0 +1,57 @@
+name = "festgeld-act-365-leap-year"
+rule = "ADR-0015: Festgeld accrues simple interest under its terms; act/365 counts 29 February"
+working = """
+10000.00 at 3.65 % act/365: 10000 x 0.0365 / 365 = 1.00 per interest day. Start
+2024-02-01 (earns), maturity 2024-03-15 (doesn't).
+End of 2024-03-01: days 1 Feb to 1 Mar inclusive = 30, 29 February among them: 10030.00.
+Maturity day 2024-03-15: 1 Feb to 14 Mar = 43 days: 10043.00. On 2024-03-16, before the
+bank's statement, accrual has stopped: 10043.00. The statement on 2024-03-18 credits
+43.00 interest and pays out 10043.00: the deposit is closed and worth its balance, 0.00.
+"""
+
+[assets.FG]
+kind = "deposit"
+
+[accounts.fg1]
+deposit = { principal = "10000.00", rate = "3.65", start = 2024-02-01, maturity = 2024-03-15, day_count = "act/365" }
+
+[[activities]]
+date = 2024-02-01
+type = "deposit"
+account = "fg1"
+asset = "FG"
+cash = "10000.00"
+
+[[activities]]
+date = 2024-03-18
+type = "interest"
+account = "fg1"
+asset = "FG"
+cash = "43.00"
+
+[[activities]]
+date = 2024-03-18
+type = "withdrawal"
+account = "fg1"
+asset = "FG"
+cash = "-10043.00"
+
+[[expect]]
+as_of = 2024-03-01
+slice = { account = "fg1" }
+value = "10030.00"
+
+[[expect]]
+as_of = 2024-03-15
+slice = { account = "fg1" }
+value = "10043.00"
+
+[[expect]]
+as_of = 2024-03-16
+slice = { account = "fg1" }
+value = "10043.00"
+
+[[expect]]
+as_of = 2024-03-18
+slice = { account = "fg1" }
+value = "0.00"

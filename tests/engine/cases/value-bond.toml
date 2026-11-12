@@ -1,0 +1,30 @@
+name = "value-bond"
+rule = "ADR-0014: a bond is valued as nominal x price in percent / 100"
+working = """
+1500.00 nominal held after a partial sale, price 98.50 %: 1500 x 98.50 / 100 = 1477.50.
+"""
+
+[assets.B1]
+kind = "bond"
+
+[prices.B1]
+2025-09-30 = "98.50"
+
+[[activities]]
+date = 2025-03-03
+type = "buy"
+asset = "B1"
+units = "2000.00"
+cash = "-2053.30"
+
+[[activities]]
+date = 2025-09-01
+type = "sell"
+asset = "B1"
+units = "-500.00"
+cash = "510.15"
+
+[[expect]]
+as_of = 2025-09-30
+slice = { asset = "B1" }
+value = "1477.50"

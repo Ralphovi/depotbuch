@@ -56,11 +56,50 @@ class Asset(BaseModel):
     isin: str | None = None
 
 
+class DayCount(StrEnum):
+    """How a deposit's interest days and year are counted (ADR-0015)."""
+
+    ACT_365 = "act/365"
+    """Actual days over a fixed 365-day year, leap years included."""
+    ACT_360 = "act/360"
+    """Actual days over a 360-day year."""
+    E30_360 = "30E/360"
+    """Every month 30 days, a 31st counted as the 30th, over a 360-day year: the European
+    30/360 German banks use."""
+
+
+class DepositTerms(BaseModel):
+    """A Festgeld's contract terms, entered once with its account (proposal 0001)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    principal: Dec = Field(gt=0)
+    rate: Dec = Field(ge=-100, le=100)
+    """Nominal interest in percent per year."""
+    start: dt.date
+    maturity: dt.date
+    day_count: DayCount = DayCount.ACT_365
+    accrue_start: bool = True
+    """Whether the start day earns interest."""
+    accrue_maturity: bool = False
+    """Whether the maturity day earns interest."""
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.maturity <= self.start:
+            raise ValueError("a deposit matures after it starts")
+        if not is_booked(self.principal) or self.principal >= MAX_BOOKED:
+            raise ValueError("a principal is whole cents below 10^15")
+        return self
+
+
 class Account(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str = Field(min_length=1)
     provider: str = Field(min_length=1)
+    deposit: DepositTerms | None = None
+    """For a Festgeld account: the deposit's terms."""
 
 
 class ActivityType(StrEnum):
