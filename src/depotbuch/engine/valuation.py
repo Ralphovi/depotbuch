@@ -179,8 +179,23 @@ def value(
     out. Only the slice's activities are replayed, so a problem in another position
     doesn't stop it.
     """
-    market = _Market(assets, prices, fx or FxRates(), accounts or {})
-    everything = list(activities)
+    with localcontext(_WIDE):  # values at full precision: no step rounds at 28 digits
+        return _value(
+            list(activities),
+            on,
+            _Market(assets, prices, fx or FxRates(), accounts or {}),
+            asset,
+            account,
+        )
+
+
+def _value(
+    everything: list[Activity],
+    on: dt.date,
+    market: _Market,
+    asset: str | None,
+    account: str | None,
+) -> Decimal:
     every = [a for a in everything if account is None or a.account == account]
     scope = [a for a in every if a.date <= on]
     if asset is None:
@@ -241,11 +256,10 @@ def _units(activities: list[Activity], on: dt.date) -> dict[tuple[str, str], Dec
 def _security(market: _Market, asset: str, units: Decimal, on: dt.date) -> Decimal:
     currency = market.currency(asset)
     rate = market.rates.rate(currency, on)  # a held position needs its rate, even at 0
-    with localcontext(_WIDE):  # units x close can need more than 28 digits
-        local = units * market.prices.close(asset, on)
-        if market.kind(asset) is AssetKind.BOND:
-            local /= _HUNDRED
-        return market.rates.to_eur(local, currency, on, rate)
+    local = units * market.prices.close(asset, on)
+    if market.kind(asset) is AssetKind.BOND:
+        local /= _HUNDRED
+    return market.rates.to_eur(local, currency, on, rate)
 
 
 def _balance(market: _Market, bookings: list[Activity], account: str, on: dt.date) -> Decimal:

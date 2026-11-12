@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from decimal import Context, Decimal
+from decimal import Context, Decimal, localcontext
 from typing import Any
 
 import pytest
@@ -286,3 +286,14 @@ def test_a_large_position_is_valued_without_rounding() -> None:
     acts = [act(type="buy", asset="X1", units=str(units), cash="-1.00")]
     got = value(acts, D, assets={}, prices=Prices({"X1": {D: close}}))
     assert got == Context(prec=80).multiply(units, close)
+
+
+def test_a_value_does_not_depend_on_the_callers_decimal_context() -> None:
+    t = terms(rate="3.123456789012345678901234567")
+    acts = [act(date=t.start, type="deposit", account="fg", cash="10000.00")]
+    accounts = {"fg": Account(id="fg", provider="bank", deposit=t)}
+    on = date(2024, 1, 15)
+    wide = value(acts, on, assets={}, prices=Prices(), accounts=accounts)
+    with localcontext(Context(prec=6)):
+        narrow = value(acts, on, assets={}, prices=Prices(), accounts=accounts)
+    assert narrow == wide
