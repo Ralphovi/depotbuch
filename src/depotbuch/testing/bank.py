@@ -267,6 +267,8 @@ class Bank:
         units = self.held(asset)
         if units <= 0:
             raise ValueError("nothing held on the Schlusstag")
+        if split_at is not None and not 0 < split_at < units:
+            raise ValueError("each of two notices needs units")
         parts = [units] if split_at is None else [split_at, units - split_at]
         per = Fraction(per_unit) / 100 if asset in self.bonds else Fraction(per_unit)
         out = []

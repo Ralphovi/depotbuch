@@ -72,6 +72,22 @@ def test_the_histories_reach_what_they_are_for() -> None:
     )
 
 
+def test_two_notices_each_have_units() -> None:
+    bank = history(1, years=9, extreme=True).bank
+    assert all(n.units > 0 for n in bank.notices)
+    with pytest.raises(ValueError, match="needs units"):
+        bank.distribute(
+            date(2030, 1, 7), date(2030, 1, 20), "F1", Decimal(1), split_at=Decimal(0)
+        )
+
+
+def test_a_case_name_is_escaped_and_a_history_has_a_year() -> None:
+    case = tomllib.loads(to_case(history(1, years=1), 'fund "A"\\n'))
+    assert case["name"] == 'fund "A"\\n'
+    with pytest.raises(ValueError, match="one year"):
+        history(1, years=0)
+
+
 def test_a_history_is_the_same_for_the_same_seed() -> None:
     assert to_case(history(11)) == to_case(history(11))
     assert to_case(history(11)) != to_case(history(12))

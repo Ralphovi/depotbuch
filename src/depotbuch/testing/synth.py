@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import math
 import random
 import sys
@@ -107,6 +108,8 @@ class Synthetic:
 
 def history(seed: int, *, years: int = 6, extreme: bool = False) -> Synthetic:
     """Invent and book a history of `years` years from `seed`."""
+    if years < 1:
+        raise ValueError("a history needs at least one year")
     rng = random.Random(seed)  # noqa: S311 - test data, not a secret
     start = dt.date(rng.randint(2012, 2020), rng.randint(1, 12), 1)
     end = dt.date(start.year + years, start.month, 1) - _DAY
@@ -209,6 +212,8 @@ class _Book:
             split = None
             if asset != _BOND and held > _SPLIT_FROM and self.rng.random() < self.split_chance:
                 split = half_up(held * Decimal(self.rng.randint(10, 90)) / 100, 0)
+                if not 0 < split < held:  # two notices only when each has units
+                    split = None
             kind = "interest" if asset == _BOND else "dividend"
             tax = Decimal(self.rng.choice(("0", "0", "26.375")))
             self.bank.distribute(
@@ -246,7 +251,8 @@ class _Book:
 
 
 def _q(value: object) -> str:
-    return f'"{value}"'
+    """`value` as a TOML string: a JSON string's escapes are valid TOML."""
+    return json.dumps(str(value))
 
 
 def to_case(syn: Synthetic, name: str | None = None) -> str:
@@ -367,10 +373,17 @@ def _expectations(
     return out
 
 
+def _positive(text: str) -> int:
+    years = int(text)
+    if years < 1:
+        raise argparse.ArgumentTypeError("at least one year")
+    return years
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("seed", type=int)
-    parser.add_argument("--years", type=int, default=6)
+    parser.add_argument("--years", type=_positive, default=6)
     parser.add_argument("--extreme", action="store_true")
     args = parser.parse_args(argv)
     sys.stdout.write(to_case(history(args.seed, years=args.years, extreme=args.extreme)))
