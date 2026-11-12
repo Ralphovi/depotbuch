@@ -165,28 +165,72 @@ taxable_gain = "164.55"
 """
 
 
-@pytest.mark.parametrize(
-    ("split_date", "account", "applies"),
-    [
-        ("2025-03-01", "depot", False),  # after the sale: irrelevant
-        ("2023-03-01", "other", False),  # another account: irrelevant
-        ("2023-03-01", "depot", True),  # between the notice and the sale
-        ("2023-01-01", "depot", True),  # after the covered year end, on the notice's day
-    ],
-)
-def test_only_a_relevant_split_blocks_the_vorabpauschale_deduction(
-    tmp_path: Path, split_date: str, account: str, applies: bool
-) -> None:
-    split = (
-        f'\n[[activities]]\ndate = {split_date}\ntype = "split"\naccount = "{account}"\n'
-        'asset = "F1"\nratio = "1"\n'
+def test_a_split_scales_the_vorabpauschale_per_unit(tmp_path: Path) -> None:
+    """A 2-for-1 split on 2023-03-01 doubles every lot's units and halves its per-unit
+    Vorabpauschale. Selling 30 of the 40 units closes lot 1 (20, carrying 10 x 19/17.5)
+    and 10 of lot 2's 20 (carrying half of 10 x 0.75 x 19/17.5): deduction 10.857142... +
+    4.071428... = 14.928571..., the same as selling 15 before the split. Gain 1800.00 - 1000.00
+    - 550.00 = 250.00; taxable (250.00 - 14.93) x 0.7 = 164.55."""
+    text = (
+        VP_CASE.replace('units = "-15"', 'units = "-30"').replace(
+            "date = 2023-06-01", "date = 2023-06-01"
+        )
+        + '\n[[activities]]\ndate = 2023-03-01\ntype = "split"\nasset = "F1"\nratio = "2"\n'
     )
-    case = load_case(write(tmp_path, VP_CASE + split))
-    if applies:
-        with pytest.raises(NotImplementedError):
-            check(case)
-    else:
-        assert all(r.ok for r in check(case))
+    assert all(r.ok for r in check(load_case(write(tmp_path, text))))
+
+
+def test_a_late_notice_applies_to_a_sale_before_it_was_posted(tmp_path: Path) -> None:
+    """The notice covering 2022 is posted on 2023-02-15; the sale of 15 on 2023-01-10 comes
+    first but after the start of 2023, so it deducts the same 14.928571... as before:
+    taxable (250.00 - 14.93) x 0.7 = 164.55."""
+    text = VP_CASE.replace(
+        'date = 2023-01-01\ntype = "vorabpauschale"\nasset',
+        'date = 2023-02-15\ntype = "vorabpauschale"\nasset',
+    ).replace("date = 2023-06-01", "date = 2023-01-10")
+    assert all(r.ok for r in check(load_case(write(tmp_path, text))))
+
+
+def test_lots_acquired_on_the_same_day_keep_their_own_vorabpauschale(tmp_path: Path) -> None:
+    """Lot 1 (2021-06-01) is held at the end of 2022 and carries the whole 10.00 notice.
+    A delivery in 2023 brings a second lot also acquired on 2021-06-01, which carries none.
+    Selling both (20 units for 2200.00, cost 1000.00 + 1000.00) deducts 10.00 once:
+    taxable (200.00 - 10.00) x 0.7 = 133.00."""
+    text = """
+name = "same-day"
+rule = "private taxable_gain"
+[assets.F1]
+partial_exemption = "30"
+[[activities]]
+date = 2021-06-01
+type = "buy"
+asset = "F1"
+units = "10"
+cash = "-1000.00"
+[[activities]]
+date = 2023-01-02
+type = "vorabpauschale"
+asset = "F1"
+amount = "10.00"
+[[activities]]
+date = 2023-03-01
+type = "transfer"
+asset = "F1"
+units = "10"
+cost_basis = "1000.00"
+acquired = 2021-06-01
+[[activities]]
+date = 2023-06-01
+type = "sell"
+asset = "F1"
+units = "-20"
+cash = "2200.00"
+[[expect]]
+as_of = 2023-06-30
+slice = { asset = "F1" }
+taxable_gain = "133.00"
+"""
+    assert all(r.ok for r in check(load_case(write(tmp_path, text))))
 
 
 def test_taxable_gain_deducts_the_vorabpauschale_of_the_units_sold(tmp_path: Path) -> None:

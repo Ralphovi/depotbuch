@@ -231,13 +231,9 @@ def _realized_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
     )
 
 
-def _vp_factor(opened: date, record: date) -> Decimal:
-    """The share of a year's Vorabpauschale a lot carries (§18 Abs. 2 InvStG).
-
-    A notice recorded at the start of year Y+1 covers year Y. A lot bought before Y carries
-    all of it; one bought in month m of Y carries (13 - m)/12; one bought later, none.
-    """
-    year = record.year - 1
+def _vp_factor(opened: date, year: int) -> Decimal:
+    """The share of year `year`'s Vorabpauschale a lot carries (§18 Abs. 2 InvStG): all of
+    it if bought before that year, (13 - m)/12 if bought in month m of it, none if later."""
     if opened.year < year:
         return Decimal(1)
     if opened.year > year:
@@ -245,27 +241,91 @@ def _vp_factor(opened: date, record: date) -> Decimal:
     return Decimal(13 - opened.month) / 12
 
 
-def _vp_per_unit(case: Case, asset: str, account: str, vp: Activity) -> dict[date, Decimal]:
-    """Per unit of a lot opened on each date: the notice's amount spread over the units held
-    at the end of the year it covers, weighted by `_vp_factor`."""
-    record = vp.ex_date or vp.date
-    year_end = date(record.year - 1, 12, 31)
-    held = build_lots(case.activities, year_end, costs=False).open_lots(
-        asset=asset, account=account
-    )
-    weight = sum((lot.units * _vp_factor(lot.opened, record) for lot in held), Decimal(0))
-    if not vp.amount or weight == 0:
-        return {}
-    return {lot.opened: vp.amount * _vp_factor(lot.opened, record) / weight for lot in held}
+class _TaxLot:
+    """A FIFO lot as the private check replays it: units, when it was acquired, and the
+    Vorabpauschale per unit assessed on it so far."""
+
+    def __init__(self, opened: date, units: Decimal) -> None:
+        self.opened = opened
+        self.units = units
+        self.vp_per_unit = Decimal(0)
+
+
+_LOT_MOVES = {ActivityType.SPLIT, ActivityType.BUY, ActivityType.SELL, ActivityType.TRANSFER}
+
+
+def _vp_events(case: Case, asset: str, as_of: date) -> list[tuple[date, Activity]]:
+    """The asset's notices and lot moves in replay order. A notice covering year Y takes
+    effect at the start of Y+1, before splits and trades, whenever it was posted."""
+    events: list[tuple[date, int, int, Activity]] = []
+    for n, a in enumerate(case.activities):
+        if a.asset != asset or a.date > as_of:
+            continue
+        if a.type is ActivityType.VORABPAUSCHALE and a.amount:
+            events.append((date((a.ex_date or a.date).year, 1, 1), 0, n, a))
+        elif a.type in _LOT_MOVES:
+            events.append((a.date, 1 if a.type is ActivityType.SPLIT else 2, n, a))
+    return [(e[0], e[3]) for e in sorted(events, key=lambda e: e[:3])]
+
+
+def _assess(queue: list[_TaxLot], amount: Decimal, year: int) -> None:
+    """Spread a notice for `year` over the lots held at its end, by `_vp_factor`."""
+    weight = sum((lot.units * _vp_factor(lot.opened, year) for lot in queue), Decimal(0))
+    if weight:
+        for lot in queue:
+            lot.vp_per_unit += amount * _vp_factor(lot.opened, year) / weight
+
+
+def _close_tax_lots(queue: list[_TaxLot], units: Decimal) -> Decimal:
+    """Close `units` FIFO; return the Vorabpauschale they carried."""
+    left, carried = units, Decimal(0)
+    while left > 0 and queue:
+        lot = queue[0]
+        take = min(lot.units, left)
+        carried += lot.vp_per_unit * take
+        lot.units -= take
+        left -= take
+        if lot.units == 0:
+            queue.pop(0)
+    return carried
+
+
+def _vp_deductions(case: Case, asset: str, as_of: date) -> dict[tuple[date, str], Decimal]:
+    """Per sale (date, account): the Vorabpauschale already assessed on the units it sold.
+
+    Replays the asset's lots in each account in the engine's FIFO order (a delivery by its
+    acquisition date). Each lot carries the Vorabpauschale per unit assessed on it; a split
+    divides that by its ratio; a sale deducts per unit closed what its lot carries.
+    """
+    lots: dict[str, list[_TaxLot]] = {}
+    out: dict[tuple[date, str], Decimal] = {}
+    for when, a in _vp_events(case, asset, as_of):
+        queue = lots.setdefault(a.account, [])
+        if a.type is ActivityType.VORABPAUSCHALE:
+            _assess(queue, a.amount or Decimal(0), when.year - 1)
+        elif a.type is ActivityType.SPLIT:
+            for lot in queue:
+                lot.units *= a.ratio or Decimal(1)
+                lot.vp_per_unit /= a.ratio or Decimal(1)
+        elif a.units > 0:
+            opened = a.acquired if a.type is ActivityType.TRANSFER and a.acquired else a.date
+            k = len(queue)
+            while k > 0 and queue[k - 1].opened > opened:
+                k -= 1
+            queue.insert(k, _TaxLot(opened, a.units))
+        else:
+            carried = _close_tax_lots(queue, -a.units)
+            if a.type is ActivityType.SELL:
+                out[(a.date, a.account)] = out.get((a.date, a.account), Decimal(0)) + carried
+    return out
 
 
 def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
     """For the private corpus: a provider's taxable gain on fund sales, rebuilt from FIFO.
 
     (gain before tax - Vorabpauschale already assessed on the units sold)
-    x (1 - partial exemption). Each notice applies to the account it was booked in and to the
-    lots held when its year started; a sale deducts, per unit closed, what its lot carried.
-    Not an engine figure: the engine computes no German tax.
+    x (1 - partial exemption), the deduction from `_vp_deductions`. Not an engine figure:
+    the engine computes no German tax.
     """
     del parqet
     asset = _asset(expect, "taxable_gain")
@@ -275,25 +335,9 @@ def _taxable_gain(case: Case, expect: Expect, parqet: bool) -> Decimal:
     rs = _book(case, expect).realizations(
         asset=asset, account=expect.slice.account, since=expect.since
     )
-    notices = [
-        a
-        for a in case.activities
-        if a.type is ActivityType.VORABPAUSCHALE and a.asset == asset and a.amount
-    ]
-    splits = [a for a in case.activities if a.type is ActivityType.SPLIT and a.asset == asset]
-    deducted = Decimal(0)
-    for r in rs:
-        for vp in notices:
-            record = vp.ex_date or vp.date
-            if vp.account == r.account and r.lot_opened < record <= r.date:
-                # A split after the covered year end and up to the sale changes what a unit
-                # is between the holding the notice is spread over and the units sold; one
-                # anywhere else doesn't matter.
-                year_end = date(record.year - 1, 12, 31)
-                if any(s.account == r.account and year_end < s.date <= r.date for s in splits):
-                    raise NotImplementedError("Vorabpauschale per unit across a split")
-                share = _vp_per_unit(case, asset, r.account, vp).get(r.lot_opened, Decimal(0))
-                deducted += share * r.units
+    vp = _vp_deductions(case, asset, expect.as_of)
+    sales = {(r.date, r.account) for r in rs}
+    deducted = sum((vp.get(k, Decimal(0)) for k in sales), Decimal(0))
     before_tax = sum((r.gain + r.taxes for r in rs), Decimal(0))
     return (before_tax - deducted) * (1 - spec.partial_exemption / 100)
 
