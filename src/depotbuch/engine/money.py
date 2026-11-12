@@ -70,19 +70,23 @@ def share(amount: Decimal, part: Decimal, whole: Decimal) -> Decimal:
 
 
 def allocate(amount: Decimal, weights: list[Decimal]) -> list[Decimal]:
-    """Split a booked `amount` in cents, pro rata to `weights`.
+    """Split a booked `amount` in cents, pro rata to non-negative `weights`.
 
-    Every part but the last is booked on its own; the last takes what is left, so the parts
-    add up to `amount` exactly.
+    Cumulative shares are booked and each part is the difference to the previous one, so
+    the parts add up to `amount` exactly, each is within a cent of its exact share, and no
+    part has the opposite sign of `amount`.
     """
+    if any(w < 0 for w in weights):
+        raise ValueError("weights can't be negative")
     total = sum(weights, Decimal(0))
     parts: list[Decimal] = []
-    left = amount
-    for w in weights[:-1]:
-        p = share(amount, w, total)
-        parts.append(p)
-        left -= p
-    parts.append(left)
+    booked = Decimal(0)
+    cumulative = Decimal(0)
+    for w in weights:
+        cumulative += w
+        upto = amount if cumulative == total else share(amount, cumulative, total)
+        parts.append(upto - booked)
+        booked = upto
     return parts
 
 

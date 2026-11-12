@@ -107,10 +107,11 @@ def test_a_partial_lot_takes_its_cost_share_in_cents() -> None:
     book = build_lots(acts, END)
     assert book.realized_gain() == 0
     assert book.invested_capital() == Decimal("1.00")
+    # Proceeds of 3.01 over three units, booked cumulatively: 1.00, 2.01, 3.01.
     assert [r.proceeds for r in book.realized] == [
         Decimal("1.00"),
-        Decimal("1.00"),
         Decimal("1.01"),
+        Decimal("1.00"),
     ]
 
 
@@ -165,3 +166,17 @@ def test_fx_rates_carry_forward_and_never_backward() -> None:
     )
     with pytest.raises(ValueError, match="positive"):
         FxRates({"USD": {date(2024, 6, 7): Decimal(0)}})
+
+
+def test_no_lot_slice_changes_sign() -> None:
+    """0.03 over five lots of one unit: cumulative booking gives 0.01, 0.00, 0.01, 0.00,
+    0.01, never a negative slice."""
+    acts = [buy(i, "1", "-0.01") for i in range(5)] + [sell(5, "-5", "0.03")]
+    book = build_lots(acts, END)
+    assert all(r.proceeds >= 0 for r in book.realized)
+    assert sum(r.proceeds for r in book.realized) == Decimal("0.03")
+
+
+def test_a_zero_foreign_amount_needs_no_rate() -> None:
+    acts = [buy(0, "1", "0.00", currency="USD")]
+    assert build_lots(acts, END).invested_capital() == 0

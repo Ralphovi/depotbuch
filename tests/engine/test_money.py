@@ -64,10 +64,11 @@ def test_money_validates_currency_and_amount() -> None:
 @pytest.mark.parametrize(
     ("amount", "weights", "parts"),
     [
-        ("3.01", ["1", "1", "1"], ["1.00", "1.00", "1.01"]),
+        ("3.01", ["1", "1", "1"], ["1.00", "1.01", "1.00"]),
         ("10.00", ["1", "2"], ["3.33", "6.67"]),
         ("0.01", ["1", "1"], ["0.01", "0.00"]),
-        ("-5.00", ["1", "1", "1"], ["-1.67", "-1.67", "-1.66"]),
+        ("-5.00", ["1", "1", "1"], ["-1.67", "-1.66", "-1.67"]),
+        ("0.03", ["1", "1", "1", "1", "1"], ["0.01", "0.00", "0.01", "0.00", "0.01"]),
     ],
 )
 def test_allocate_books_parts_that_add_up_exactly(
@@ -86,8 +87,14 @@ def test_allocation_is_always_exact_and_in_cents(
     amount: Decimal, weights: list[Decimal]
 ) -> None:
     parts = allocate(amount, weights)
+    total = sum(weights)
     assert sum(parts) == amount
     assert all(is_booked(p) for p in parts)
+    assert all(p * amount >= 0 for p in parts), "no part has the opposite sign"
+    assert all(
+        abs(p - amount * w / total) < Decimal("0.01")
+        for p, w in zip(parts, weights, strict=True)
+    )
 
 
 def test_share_of_nothing_is_refused() -> None:

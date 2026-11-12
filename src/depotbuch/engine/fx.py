@@ -50,7 +50,7 @@ class FxRates:
     ) -> Decimal:
         """`amount` in EUR at full precision: divided by the broker's rate when given, else
         the ECB rate. For values and other analytical figures."""
-        if currency == EUR:
+        if currency == EUR or amount == 0:
             return amount
         return amount / (broker_rate if broker_rate is not None else self.rate(currency, on))
 

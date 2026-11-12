@@ -203,7 +203,8 @@ def _close(queue: deque[Lot], a: Activity, rates: FxRates, *, costs: bool) -> li
     taxes = _eur(a, a.taxes, rates) if is_sale and costs else _ZERO
     out: list[Realization] = []
     left = total
-    proceeds_left, taxes_left = proceeds, taxes
+    closed = _ZERO
+    proceeds_booked = taxes_booked = _ZERO
     while left > _ZERO:
         lot = queue[0]
         take = min(lot.units, left)
@@ -213,12 +214,13 @@ def _close(queue: deque[Lot], a: Activity, rates: FxRates, *, costs: bool) -> li
         else:
             queue[0] = replace(lot, units=lot.units - take, cost=lot.cost - cost)
         left -= take
-        # In cents, pro rata by units; the last slice takes the rest, so the slices add up
-        # to the booked proceeds and taxes exactly.
-        part = proceeds_left if left == _ZERO else share(proceeds, take, total)
-        tax = taxes_left if left == _ZERO else share(taxes, take, total)
-        proceeds_left -= part
-        taxes_left -= tax
+        closed += take
+        # In cents, pro rata by units, booked cumulatively (as `money.allocate`): the slices
+        # add up to the booked proceeds and taxes exactly and none changes sign.
+        proceeds_upto = proceeds if left == _ZERO else share(proceeds, closed, total)
+        taxes_upto = taxes if left == _ZERO else share(taxes, closed, total)
+        part, tax = proceeds_upto - proceeds_booked, taxes_upto - taxes_booked
+        proceeds_booked, taxes_booked = proceeds_upto, taxes_upto
         if is_sale:
             out.append(Realization(a.date, a.account, asset, take, part, cost, tax, lot.opened))
     return out
