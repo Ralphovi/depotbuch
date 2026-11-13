@@ -1,11 +1,15 @@
 """The private runner: refuses unsafe locations and never prints case data (proposal 0002).
 
-Every corpus here is synthetic, built in pytest's temporary directory, which lies outside
-the repository. The secrets below stand in for real account numbers, names and amounts.
+Every corpus here is synthetic, built in a temporary directory outside the repository and
+outside any Git repository (see the `tmp_path` fixture). The secrets below stand in for real
+account numbers, names and amounts.
 """
 
 import os
+import shutil
 import subprocess
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -50,6 +54,41 @@ GIT_ENV = {
     "GIT_COMMITTER_NAME": "t",
     "GIT_COMMITTER_EMAIL": "t@example.invalid",
 }
+
+# Fallback bases for when pytest's temporary directory sits under a `.git` marker.
+FALLBACK_TEMP_BASES = ("/var/tmp", "/dev/shm")  # noqa: S108 - a fresh mkdtemp under each
+
+
+def _git_marker_above(path: Path) -> Path | None:
+    """The first `.git` at or above `path`, or None."""
+    for p in (path, *path.parents):
+        if os.path.lexists(p / ".git"):
+            return p / ".git"
+    return None
+
+
+@pytest.fixture
+def tmp_path(tmp_path: Path) -> Iterator[Path]:
+    """pytest's `tmp_path`, unless a `.git` sits above it; then a clean directory elsewhere.
+
+    The runner refuses a corpus under a `.git` that git can't read, by design. A stray one
+    on the host, such as an empty `/tmp/.git` left by a sandbox, would make every test here
+    fail for a reason that has nothing to do with the code. Skips, saying why, if no clean
+    location exists.
+    """
+    marker = _git_marker_above(tmp_path)
+    if marker is None:
+        yield tmp_path
+        return
+    for base in map(Path, FALLBACK_TEMP_BASES):
+        if base.is_dir() and _git_marker_above(base) is None:
+            clean = Path(tempfile.mkdtemp(prefix="depotbuch-reconcile-", dir=base)).resolve()
+            try:
+                yield clean
+            finally:
+                shutil.rmtree(clean, ignore_errors=True)
+            return
+    pytest.skip(f"no temporary directory free of a .git marker ({marker} is above tmp_path)")
 
 
 def git(*args: str, cwd: Path) -> None:
