@@ -84,6 +84,10 @@ dependency bug only if this project's use of it is what makes it exploitable).
 - Rate limiting on login is not decided yet (§14.5).
 - Production settings (HTTPS redirect, secure cookies, HSTS) arrive with the deployment
   milestone; the scaffold runs with Django's defaults behind `DEPOTBUCH_*` variables.
+- The pre-commit secret guard (`.pre-commit-config.yaml`: machine-local Claude Code settings,
+  credential files, gitleaks) runs only in clones where it was activated (the hook reads copies of the config
+  and the gitleaks policy taken from the default branch) and is skipped by `git commit --no-verify`. A way to get a secret committed past an *active*
+  guard is in scope.
 
 ## How to exercise it
 
