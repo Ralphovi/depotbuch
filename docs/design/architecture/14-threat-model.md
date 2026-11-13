@@ -152,8 +152,8 @@ formula characters.
   (or a suffixed copy), `CLAUDE.local.md`, `.credentials.json` or `.env` even when
   force-added, and runs gitleaks on staged content. Residual: git hooks are not cloned, so
   the guard runs only in a clone where it was activated (the header of `.pre-commit-config.yaml`: the hook reads copies of the
-  config and the gitleaks policy taken from the default branch, so a checked-out branch
-  cannot redefine them), and
+  config and the gitleaks policy taken from the default branch and refuses a checked-out
+  `.gitleaksignore`, so a checked-out branch cannot redefine them), and
   `git commit --no-verify` skips it. GitHub push protection is the backstop for a public
   repository; a private repository on a personal account has none.
 
