@@ -116,7 +116,7 @@ The owner is trusted; there are no other users.
 | Wrong prices from a provider | Splits and closes are visible in the holding detail; stale-data flags; provider chosen per security; manual override. **[OPEN]** A plausibility check on large day-to-day jumps. |
 | Malicious dependency | Pinned dependencies, Dependabot with a 7-day cooldown, GPL-compatible packages from known sources; plugins come from the owner's own repositories. |
 | Secrets in the repository | Secret scanning with push protection (repo settings); no real statements or data in fixtures. |
-| A developer commits machine-local Claude Code settings that hold recorded commands with tokens | `.gitignore` ignores `.claude/settings.local.json*` at any depth; the `.pre-commit-config.yaml` path rule refuses it, `CLAUDE.local.md`, `.credentials.json` and `.env` even when force-added; gitleaks scans staged content; GitHub push protection on public repositories. Needs `pre-commit install` per clone (§14.8). |
+| A developer commits machine-local Claude Code settings that hold recorded commands with tokens | `.gitignore` ignores `.claude/settings.local.json*` at any depth; the `.pre-commit-config.yaml` path rule refuses it, `CLAUDE.local.md`, `.credentials.json` and `.env` even when force-added; gitleaks scans staged content; GitHub push protection on public repositories. Needs activation per clone; the hook reads a copy taken from the default branch (§14.8). |
 
 ## 14.6 Abuse-case tests
 
@@ -151,7 +151,8 @@ formula characters.
   The repository ignores it at any depth, and `.pre-commit-config.yaml` refuses to commit it
   (or a suffixed copy), `CLAUDE.local.md`, `.credentials.json` or `.env` even when
   force-added, and runs gitleaks on staged content. Residual: git hooks are not cloned, so
-  the guard runs only in a clone where `pre-commit install` was run, and
+  the guard runs only in a clone where it was activated (the header of `.pre-commit-config.yaml`: the hook reads a copy
+  taken from the default branch, so a checked-out branch cannot redefine it), and
   `git commit --no-verify` skips it. GitHub push protection is the backstop for a public
   repository; a private repository on a personal account has none.
 
