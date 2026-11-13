@@ -66,7 +66,8 @@ Engine figures are checked against hand-computed cases in `tests/engine/cases/` 
 format is described in `src/depotbuch/testing/casefile.py`). The maintainer also checks
 them against a private corpus of real statements with `nox -s reconcile -- <path>`. That
 session is not part of the gate, never runs in CI, and needs nothing from contributors
-(proposal 0002).
+(proposal 0002). Agents keep away from it entirely; see
+[AGENTS.md, *Private data*](AGENTS.md#private-data).
 
 The engine (`src/depotbuch/engine/`) and the adapters (`src/depotbuch/adapters/`) never
 import Django or Django Ninja: ruff's banned-api rule and `tests/test_boundaries.py` fail

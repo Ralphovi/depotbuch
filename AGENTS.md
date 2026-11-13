@@ -12,6 +12,23 @@ agent-specific discipline.
 - Your work on a change **ends at the open PR with green checks**. Report the PR
   URL and stop. The ready-mark and the merge are the maintainer's sign-off.
 
+## Private data
+
+The maintainer also checks the engine against a private corpus of real statements. That
+data never reaches this repository, a PR, a CI log or an agent
+([Three kinds of test case](docs/design/proposals/draft/0002-m1-engine-core.md#three-kinds-of-test-case)
+says why).
+
+- **Never read, list, search or run anything in the private corpus** or the maintainer's
+  statements, wherever they are.
+- **Never run the private reconciliation** (`nox -s reconcile`, which runs
+  `depotbuch.testing.reconcile`). It is the maintainer's, local only.
+- Use the public cases (`tests/engine/cases/`) and the synthetic histories
+  (`depotbuch.testing.synth`, `tests/engine/test_synthetic.py`) instead. They follow the
+  same rules and are safe everywhere.
+- Write no real names, account or depot numbers, holdings or amounts into code, cases,
+  commits or PRs. A figure you add is invented or comes from a public case.
+
 ## Worktree discipline
 
 - Do implementation work in a dedicated Git worktree, not in the user's active
