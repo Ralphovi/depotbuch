@@ -116,7 +116,7 @@ The owner is trusted; there are no other users.
 | Wrong prices from a provider | Splits and closes are visible in the holding detail; stale-data flags; provider chosen per security; manual override. **[OPEN]** A plausibility check on large day-to-day jumps. |
 | Malicious dependency | Pinned dependencies, Dependabot with a 7-day cooldown, GPL-compatible packages from known sources; plugins come from the owner's own repositories. |
 | Secrets in the repository | Secret scanning with push protection (repo settings); no real statements or data in fixtures. |
-| A developer commits machine-local Claude Code settings that hold recorded commands with tokens | `.gitignore` ignores `.claude/settings.local.json*` at any depth; the `.pre-commit-config.yaml` path rule refuses it, `CLAUDE.local.md`, `.credentials.json` and `.env` even when force-added; gitleaks scans staged content; GitHub push protection on public repositories. Needs activation per clone; the hook reads copies of the config and the gitleaks policy taken from the default branch (§14.8). |
+| A developer commits machine-local Claude Code settings that hold recorded commands with tokens | `.gitignore` ignores `.claude/settings.local.json*` at any depth; the `.pre-commit-config.yaml` path rule refuses it, `CLAUDE.local.md`, `.credentials.json` and `.env` in any letter case even when force-added; gitleaks scans staged content; GitHub push protection on public repositories. Needs activation per clone; the hook reads copies of the config and the gitleaks policy taken from the default branch (§14.8). |
 
 ## 14.6 Abuse-case tests
 
@@ -149,12 +149,18 @@ formula characters.
 - **Machine-local Claude Code settings can leak secrets.** Claude Code saves each command
   approved with "don't ask again" verbatim, tokens included, to `.claude/settings.local.json`.
   The repository ignores it at any depth, and `.pre-commit-config.yaml` refuses to commit it
-  (or a suffixed copy), `CLAUDE.local.md`, `.credentials.json` or `.env` even when
-  force-added, and runs gitleaks on staged content. Residual: git hooks are not cloned, so
+  (or a suffixed copy), `CLAUDE.local.md`, `.credentials.json` or `.env` in any letter
+  case even when force-added, and runs gitleaks on staged content. Activation
+  (`.secret-guard/activate.sh`) refuses unless every worktree resolves `core.hooksPath` the
+  same way, so a per-worktree setting or an `includeIf` cannot route a worktree around the
+  hook; `.secret-guard/test-activate.sh` exercises these scenarios. Residual: git hooks are not cloned, so
   the guard runs only in a clone where it was activated (the header of `.pre-commit-config.yaml`: the hook reads copies of the
   config and the gitleaks policy taken from the default branch and refuses a checked-out or
   staged `.gitleaksignore` and ignores `gitleaks:allow` comments, so a checked-out branch cannot redefine them), and
-  `git commit --no-verify` skips it. GitHub push protection is the backstop for a public
+  `git commit --no-verify` skips it. The remaining accepted limits are listed in the
+  header of `.secret-guard/activate.sh`, among them a conditional include that starts to
+  match only after activation, and gitleaks rules that need a file's path, which do not
+  fire on the staged-blob pass. GitHub push protection is the backstop for a public
   repository; a private repository on a personal account has none.
 
 ## 14.9 Gaps and their disposition

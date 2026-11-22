@@ -86,8 +86,9 @@ dependency bug only if this project's use of it is what makes it exploitable).
   milestone; the scaffold runs with Django's defaults behind `DEPOTBUCH_*` variables.
 - The pre-commit secret guard (`.pre-commit-config.yaml`: machine-local Claude Code settings,
   credential files, gitleaks) runs only in clones where it was activated (the hook reads copies of the config
-  and the gitleaks policy taken from the default branch) and is skipped by `git commit --no-verify`. A way to get a secret committed past an *active*
-  guard is in scope.
+  and the gitleaks policy taken from the default branch) and is skipped by `git commit --no-verify`. The limits listed under "Known limits" in
+  `.secret-guard/activate.sh` are known gaps too. A way to get a secret committed past an
+  *active* guard is in scope.
 
 ## How to exercise it
 
